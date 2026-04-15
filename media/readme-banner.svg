@@ -1,0 +1,148 @@
+﻿<svg width="1200" height="420" viewBox="0 0 1200 420" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="88" y1="40" x2="1086" y2="420" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#122036"/>
+      <stop offset="1" stop-color="#284066"/>
+    </linearGradient>
+    <linearGradient id="card" x1="173" y1="72" x2="1002" y2="338" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#253958" stop-opacity="0.95"/>
+      <stop offset="1" stop-color="#1B2B44" stop-opacity="0.92"/>
+    </linearGradient>
+    <linearGradient id="floor" x1="178" y1="312" x2="1024" y2="312" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#9C7555"/>
+      <stop offset="0.5" stop-color="#7F5E45"/>
+      <stop offset="1" stop-color="#6B4D37"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(949 122) rotate(90) scale(136 204)">
+      <stop stop-color="#FFEFB8" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#FFEFB8" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="shadow" x="0" y="0" width="1200" height="420" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="14" stdDeviation="18" flood-color="#04101F" flood-opacity="0.34"/>
+    </filter>
+    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%" filterUnits="objectBoundingBox" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#04101F" flood-opacity="0.28"/>
+    </filter>
+    <style>
+      .float-slow { animation: floatSlow 4.4s ease-in-out infinite; transform-origin: center; }
+      .float-fast { animation: floatFast 2.1s ease-in-out infinite; transform-origin: center; }
+      .blink { animation: blink 3.8s infinite; transform-origin: center; }
+      .sparkle { animation: sparkle 2.8s ease-in-out infinite; transform-origin: center; }
+      .heart { animation: heartRise 2.4s ease-in-out infinite; transform-origin: center; }
+      .lamp-glow { animation: lampGlow 2.8s ease-in-out infinite; transform-origin: center; }
+
+      @keyframes floatSlow {
+        0%, 100% { transform: translateY(0px); }
+        50% { transform: translateY(-8px); }
+      }
+
+      @keyframes floatFast {
+        0%, 100% { transform: translateY(0px); }
+        50% { transform: translateY(-4px); }
+      }
+
+      @keyframes blink {
+        0%, 44%, 48%, 100% { opacity: 1; }
+        45%, 47% { opacity: 0.15; }
+      }
+
+      @keyframes sparkle {
+        0%, 100% { opacity: 0.55; transform: scale(0.95); }
+        50% { opacity: 1; transform: scale(1.1); }
+      }
+
+      @keyframes heartRise {
+        0% { opacity: 0; transform: translateY(10px) scale(0.7); }
+        20% { opacity: 1; }
+        100% { opacity: 0; transform: translateY(-22px) scale(1.05); }
+      }
+
+      @keyframes lampGlow {
+        0%, 100% { opacity: 0.45; }
+        50% { opacity: 0.95; }
+      }
+    </style>
+  </defs>
+
+  <rect width="1200" height="420" rx="32" fill="url(#bg)"/>
+  <circle cx="122" cy="74" r="140" fill="#8EC7FF" fill-opacity="0.12"/>
+  <circle cx="1036" cy="70" r="168" fill="#9FF3D9" fill-opacity="0.08"/>
+  <circle cx="980" cy="114" r="132" fill="url(#glow)"/>
+
+  <g filter="url(#shadow)">
+    <rect x="92" y="54" width="1016" height="308" rx="28" fill="url(#card)"/>
+  </g>
+
+  <rect x="132" y="86" width="936" height="224" rx="24" fill="#21324F" fill-opacity="0.58"/>
+  <rect x="132" y="276" width="936" height="44" rx="16" fill="url(#floor)"/>
+  <rect x="132" y="266" width="936" height="8" rx="4" fill="#F8D7B6" fill-opacity="0.2"/>
+
+  <g class="sparkle">
+    <path d="M960 96L965 108L977 113L965 118L960 130L955 118L943 113L955 108L960 96Z" fill="#FFF4C6"/>
+    <path d="M1002 134L1005 141L1012 144L1005 147L1002 154L999 147L992 144L999 141L1002 134Z" fill="#FFF4C6"/>
+  </g>
+
+  <g opacity="0.94">
+    <rect x="889" y="102" width="116" height="86" rx="18" fill="#9DD0FF"/>
+    <rect x="894" y="107" width="106" height="76" rx="14" fill="#6A92C5"/>
+    <path class="lamp-glow" d="M947 118C980 118 996 142 996 162C996 177 971 184 947 184C923 184 898 177 898 162C898 142 914 118 947 118Z" fill="#FFF0B0" fill-opacity="0.6"/>
+    <rect x="946" y="107" width="4" height="76" fill="#6E513F"/>
+    <rect x="894" y="142" width="106" height="6" fill="#6E513F"/>
+  </g>
+
+  <g transform="translate(250 92)">
+    <text x="0" y="0" fill="#A6CFFF" font-family="Georgia, 'Times New Roman', serif" font-size="18" letter-spacing="5">GOPHER'S EDEN</text>
+    <text x="0" y="70" fill="#F8FBFF" font-family="Georgia, 'Times New Roman', serif" font-size="56" font-weight="700">让宠物在代码旁</text>
+    <text x="0" y="132" fill="#F8FBFF" font-family="Georgia, 'Times New Roman', serif" font-size="56" font-weight="700">安静陪你写代码</text>
+    <text x="0" y="182" fill="#BED0E6" font-family="'Segoe UI', 'Microsoft YaHei', sans-serif" font-size="24">
+      VS Code 像素伊甸园插件 · 宠物陪伴 · 底部乐园 · 项目级存档
+    </text>
+  </g>
+
+  <g transform="translate(238 232)">
+    <rect x="0" y="0" width="148" height="38" rx="19" fill="#A7D0FF"/>
+    <text x="26" y="25" fill="#243958" font-family="'Segoe UI', 'Microsoft YaHei', sans-serif" font-size="18" font-weight="700">TypeScript</text>
+    <rect x="164" y="0" width="126" height="38" rx="19" fill="#B5F2D8"/>
+    <text x="192" y="25" fill="#1D3E38" font-family="'Segoe UI', 'Microsoft YaHei', sans-serif" font-size="18" font-weight="700">Windows</text>
+    <rect x="304" y="0" width="118" height="38" rx="19" fill="#FFD9B3"/>
+    <text x="337" y="25" fill="#4A3118" font-family="'Segoe UI', 'Microsoft YaHei', sans-serif" font-size="18" font-weight="700">macOS</text>
+  </g>
+
+  <g transform="translate(852 206)" class="float-fast">
+    <ellipse cx="54" cy="90" rx="42" ry="10" fill="#081321" fill-opacity="0.28"/>
+    <g filter="url(#soft)">
+      <path d="M25 10H34V20H25V10Z" fill="#8AD6C3"/>
+      <path d="M72 10H81V20H72V10Z" fill="#8AD6C3"/>
+      <path d="M33 20H73V29H33V20Z" fill="#2D405C"/>
+      <path d="M18 29H88V39H18V29Z" fill="#2D405C"/>
+      <path d="M11 39H95V89H11V39Z" fill="#6F9DCB"/>
+      <path d="M23 48H35V60H23V48Z" fill="#FFFFFF" class="blink"/>
+      <path d="M71 48H83V60H71V48Z" fill="#FFFFFF" class="blink"/>
+      <path d="M29 52H33V56H29V52Z" fill="#2D405C" class="blink"/>
+      <path d="M77 52H81V56H77V52Z" fill="#2D405C" class="blink"/>
+      <path d="M21 70H85V93H21V70Z" fill="#F2DFD0"/>
+      <path d="M31 69H43V77H31V69Z" fill="#E998A5"/>
+      <path d="M63 69H75V77H63V69Z" fill="#E998A5"/>
+      <path d="M44 78H63V84H44V78Z" fill="#2D405C"/>
+      <path d="M18 89H88V102H18V89Z" fill="#C57F5B"/>
+      <path d="M14 98H92V110H14V98Z" fill="#9F7451"/>
+    </g>
+    <g class="heart">
+      <path d="M89 6C92 0 101 0 104 6C107 0 116 0 119 6C122 11 119 17 104 30C89 17 86 11 89 6Z" fill="#FF9FB3"/>
+    </g>
+  </g>
+
+  <g transform="translate(803 250)">
+    <rect x="0" y="10" width="50" height="34" rx="7" fill="#845B43"/>
+    <rect x="6" y="0" width="38" height="20" rx="6" fill="#B98A5E"/>
+    <rect x="12" y="-14" width="10" height="18" rx="3" fill="#5E8F60"/>
+    <rect x="26" y="-18" width="12" height="22" rx="3" fill="#7BB36D"/>
+  </g>
+
+  <g transform="translate(938 256)">
+    <rect x="0" y="0" width="60" height="26" rx="6" fill="#6D5140"/>
+    <rect x="5" y="-18" width="50" height="18" rx="6" fill="#E3C89E"/>
+    <rect x="10" y="22" width="7" height="26" rx="3" fill="#6D5140"/>
+    <rect x="43" y="22" width="7" height="26" rx="3" fill="#6D5140"/>
+  </g>
+</svg>
