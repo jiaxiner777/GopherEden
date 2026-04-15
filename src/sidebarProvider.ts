@@ -130,7 +130,7 @@ export class EdenSidebarProvider implements vscode.WebviewViewProvider {
           <article class="resource-card">
             <span class="resource-label">碎砖</span>
             <strong id="resource-bricks">0</strong>
-            <small>每新增 10 行有效 Go / Java 代码 +1</small>
+            <small>每新增 10 行有效源码/文本 +1（忽略 .gitignore、压缩包与构建产物）</small>
           </article>
           <article class="resource-card">
             <span class="resource-label">露珠</span>

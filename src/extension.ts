@@ -579,7 +579,7 @@ class EdenController implements vscode.Disposable {
       return;
     }
 
-    if (!isResourceTrackedDocument(event.document)) {
+    if (!(await isResourceTrackedDocument(event.document))) {
       this.renderDebounced();
       return;
     }
@@ -1068,9 +1068,245 @@ function clearFurnitureDecorations(
   }
 }
 
-function isResourceTrackedDocument(document: vscode.TextDocument): boolean {
+const EXCLUDED_RESOURCE_EXTENSIONS = new Set([
+  '.7z',
+  '.avi',
+  '.bin',
+  '.bmp',
+  '.class',
+  '.dll',
+  '.dmg',
+  '.exe',
+  '.gif',
+  '.gz',
+  '.ico',
+  '.jar',
+  '.jpeg',
+  '.jpg',
+  '.mov',
+  '.mp3',
+  '.mp4',
+  '.o',
+  '.obj',
+  '.pdf',
+  '.png',
+  '.pyc',
+  '.rar',
+  '.so',
+  '.tar',
+  '.tgz',
+  '.ttf',
+  '.vsix',
+  '.wav',
+  '.webm',
+  '.woff',
+  '.woff2',
+  '.zip',
+]);
+
+const EXCLUDED_RESOURCE_BASENAMES = new Set([
+  '.gitignore',
+  '.gitattributes',
+  'package-lock.json',
+  'pnpm-lock.yaml',
+  'yarn.lock',
+]);
+
+const EXCLUDED_RESOURCE_LANGUAGE_IDS = new Set([
+  'git-commit',
+  'git-rebase',
+  'log',
+  'output',
+  'search-result',
+]);
+
+interface GitIgnoreRule {
+  readonly negate: boolean;
+  readonly matcher: RegExp;
+}
+
+interface GitIgnoreCacheEntry {
+  readonly stamp: string;
+  readonly rules: readonly GitIgnoreRule[];
+}
+
+const gitIgnoreCache = new Map<string, GitIgnoreCacheEntry>();
+
+async function isResourceTrackedDocument(document: vscode.TextDocument): Promise<boolean> {
+  if (document.uri.scheme !== 'file') {
+    return false;
+  }
+
+  const languageId = document.languageId.toLowerCase();
+  if (EXCLUDED_RESOURCE_LANGUAGE_IDS.has(languageId)) {
+    return false;
+  }
+
   const filePath = document.uri.fsPath.toLowerCase();
-  return document.languageId === 'go' || document.languageId === 'java' || filePath.endsWith('.go') || filePath.endsWith('.java');
+  const baseName = pathBaseName(filePath);
+  if (EXCLUDED_RESOURCE_BASENAMES.has(baseName)) {
+    return false;
+  }
+
+  const extension = pathExtension(baseName);
+  if (EXCLUDED_RESOURCE_EXTENSIONS.has(extension)) {
+    return false;
+  }
+
+  const workspaceFolder = vscode.workspace.getWorkspaceFolder(document.uri);
+  if (workspaceFolder && await isGitIgnored(document.uri, workspaceFolder)) {
+    return false;
+  }
+
+  return true;
+}
+
+async function isGitIgnored(uri: vscode.Uri, workspaceFolder: vscode.WorkspaceFolder): Promise<boolean> {
+  const relativePath = toWorkspaceRelativePath(uri, workspaceFolder);
+  if (!relativePath) {
+    return false;
+  }
+
+  const rules = await loadGitIgnoreRules(workspaceFolder);
+  let ignored = false;
+
+  for (const rule of rules) {
+    if (rule.matcher.test(relativePath)) {
+      ignored = !rule.negate;
+    }
+  }
+
+  return ignored;
+}
+
+async function loadGitIgnoreRules(workspaceFolder: vscode.WorkspaceFolder): Promise<readonly GitIgnoreRule[]> {
+  const cacheKey = workspaceFolder.uri.toString();
+  const gitIgnoreUri = vscode.Uri.joinPath(workspaceFolder.uri, '.gitignore');
+
+  try {
+    const stat = await vscode.workspace.fs.stat(gitIgnoreUri);
+    const stamp = `${stat.mtime}:${stat.size}`;
+    const cached = gitIgnoreCache.get(cacheKey);
+    if (cached?.stamp === stamp) {
+      return cached.rules;
+    }
+
+    const content = Buffer.from(await vscode.workspace.fs.readFile(gitIgnoreUri)).toString('utf8');
+    const rules = parseGitIgnoreRules(content);
+    gitIgnoreCache.set(cacheKey, { stamp, rules });
+    return rules;
+  } catch {
+    const cached = gitIgnoreCache.get(cacheKey);
+    if (cached?.stamp === 'missing') {
+      return cached.rules;
+    }
+
+    gitIgnoreCache.set(cacheKey, { stamp: 'missing', rules: [] });
+    return [];
+  }
+}
+
+function parseGitIgnoreRules(content: string): readonly GitIgnoreRule[] {
+  const rules: GitIgnoreRule[] = [];
+
+  for (const rawLine of content.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith('#')) {
+      continue;
+    }
+
+    let pattern = line;
+    let negate = false;
+    if (pattern.startsWith('!')) {
+      negate = true;
+      pattern = pattern.slice(1);
+    }
+
+    pattern = pattern.replace(/\\/g, '/');
+    const anchored = pattern.startsWith('/');
+    if (anchored) {
+      pattern = pattern.slice(1);
+    }
+
+    if (!pattern) {
+      continue;
+    }
+
+    const directoryOnly = pattern.endsWith('/');
+    if (directoryOnly) {
+      pattern = pattern.slice(0, -1);
+    }
+
+    if (!pattern) {
+      continue;
+    }
+
+    rules.push({
+      negate,
+      matcher: compileGitIgnorePattern(pattern, anchored, directoryOnly),
+    });
+  }
+
+  return rules;
+}
+
+function compileGitIgnorePattern(pattern: string, anchored: boolean, directoryOnly: boolean): RegExp {
+  const normalized = pattern.replace(/\\/g, '/');
+  const prefix = anchored ? '^' : '(?:^|.*/)';
+  const body = globToRegExpSource(normalized);
+  const suffix = directoryOnly ? '(?:$|/.*)' : '(?:$|/.*)';
+  return new RegExp(`${prefix}${body}${suffix}`);
+}
+
+function globToRegExpSource(pattern: string): string {
+  let source = '';
+
+  for (let index = 0; index < pattern.length; index += 1) {
+    const char = pattern[index];
+    if (char === '*') {
+      if (pattern[index + 1] === '*') {
+        source += '.*';
+        index += 1;
+      } else {
+        source += '[^/]*';
+      }
+      continue;
+    }
+
+    if (char === '?') {
+      source += '[^/]';
+      continue;
+    }
+
+    source += escapeRegExpChar(char);
+  }
+
+  return source;
+}
+
+function escapeRegExpChar(char: string): string {
+  return /[|\\{}()[\]^$+?.]/.test(char) ? `\\${char}` : char;
+}
+
+function toWorkspaceRelativePath(uri: vscode.Uri, workspaceFolder: vscode.WorkspaceFolder): string | undefined {
+  const workspacePath = workspaceFolder.uri.fsPath.replace(/\\/g, '/');
+  const filePath = uri.fsPath.replace(/\\/g, '/');
+  if (!filePath.toLowerCase().startsWith(workspacePath.toLowerCase())) {
+    return undefined;
+  }
+
+  return filePath.slice(workspacePath.length).replace(/^\/+/, '');
+}
+
+function pathBaseName(filePath: string): string {
+  const normalized = filePath.replace(/\\/g, '/');
+  const lastSlash = normalized.lastIndexOf('/');
+  return lastSlash >= 0 ? normalized.slice(lastSlash + 1) : normalized;
+}
+
+function pathExtension(baseName: string): string {
+  const lastDot = baseName.lastIndexOf('.');
+  return lastDot > 0 ? baseName.slice(lastDot) : '';
 }
 
 function countMeaningfulLines(text: string): number {
