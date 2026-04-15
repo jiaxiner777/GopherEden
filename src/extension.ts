@@ -1,10 +1,20 @@
 import * as vscode from 'vscode';
 
+import { SHOP_ITEMS } from './catalog';
 import { debounce } from './debounce';
 import { DockMessage, EdenDockProvider } from './dockProvider';
+import { getFurnitureAssetFile, getFurnitureLabel } from './furniture';
 import { EdenSidebarProvider, SidebarMessage } from './sidebarProvider';
 import { EdenStateStore } from './stateStore';
-import { EdenState, EdenViewState, EditorPetUiState, PetStatus } from './types';
+import {
+  EdenState,
+  EdenViewState,
+  EditorPetUiState,
+  FurnitureAnchorType,
+  FurnitureKind,
+  PetStatus,
+  PlacedFurniture,
+} from './types';
 
 type PetMood = 'normal' | 'alert' | 'working';
 type PetRenderMode = 'floating' | 'dock-edge';
@@ -22,6 +32,15 @@ interface PetRenderTarget {
   readonly displayLine?: number;
   readonly anchorLine?: number;
   readonly topOffset?: number;
+}
+
+interface FurnitureRenderTarget {
+  readonly placement: PlacedFurniture;
+  readonly editor: vscode.TextEditor;
+  readonly displayLine: number;
+  readonly anchorLine: number;
+  readonly topOffset: number;
+  readonly marginLeft: number;
 }
 
 interface ViewportMetrics {
@@ -43,6 +62,18 @@ const PET_EDGE_OFFSET_X = 72;
 const PET_MAX_ANCHOR_LENGTH = 132;
 const PET_MAX_FLOAT_LINE_LENGTH = 116;
 const PET_MAX_EDGE_LINE_LENGTH = 92;
+const FURNITURE_MAX_LINE_LENGTH = 142;
+const FURNITURE_BASE_OFFSET_X = 84;
+const FURNITURE_FLOAT_OFFSET_X = 92;
+const FURNITURE_OPACITY = '0.72';
+
+const FURNITURE_ICON_SIZES: Readonly<Record<FurnitureKind, number>> = {
+  piano: 28,
+  bench: 28,
+  tree: 32,
+  lamp: 24,
+  grass: 24,
+};
 
 class EdenController implements vscode.Disposable {
   private readonly disposables: vscode.Disposable[] = [];
@@ -51,6 +82,7 @@ class EdenController implements vscode.Disposable {
   private readonly sidebarProvider: EdenSidebarProvider;
   private readonly dockProvider: EdenDockProvider;
   private readonly petDecorations: Record<PetMood, vscode.TextEditorDecorationType>;
+  private readonly furnitureDecorations: Record<FurnitureKind, vscode.TextEditorDecorationType>;
   private readonly statusBarItem: vscode.StatusBarItem;
 
   private workingAnimationTimer: NodeJS.Timeout | undefined;
@@ -59,7 +91,7 @@ class EdenController implements vscode.Disposable {
   private dockVisible = false;
 
   public constructor(private readonly context: vscode.ExtensionContext) {
-    this.stateStore = new EdenStateStore(context.globalState);
+    this.stateStore = new EdenStateStore(context);
     this.sidebarProvider = new EdenSidebarProvider(context.extensionUri);
     this.dockProvider = new EdenDockProvider(context.extensionUri, (visible) => {
       this.dockVisible = visible;
@@ -79,15 +111,28 @@ class EdenController implements vscode.Disposable {
       alert: this.createPetDecoration(vscode.Uri.joinPath(this.context.extensionUri, 'media', 'gopher-alert.svg')),
       working: this.createPetDecoration(vscode.Uri.joinPath(this.context.extensionUri, 'media', 'gopher-working.svg')),
     };
+    this.furnitureDecorations = {
+      piano: this.createFurnitureDecoration('piano'),
+      bench: this.createFurnitureDecoration('bench'),
+      tree: this.createFurnitureDecoration('tree'),
+      lamp: this.createFurnitureDecoration('lamp'),
+      grass: this.createFurnitureDecoration('grass'),
+    };
     this.statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
     this.statusBarItem.text = '$(symbol-misc) Gopher \u5e95\u90e8\u4e50\u56ed';
-    this.statusBarItem.tooltip = 'Gopher \u7684\u62d6\u62fd\u4e0e\u4e92\u52a8\u5728\u5e95\u90e8\u4e50\u56ed\u4e2d\u8fdb\u884c';
+    this.statusBarItem.tooltip = '\u771f\u6b63\u7684\u62d6\u62fd\u548c\u4e92\u52a8\u90fd\u653e\u5728\u5e95\u90e8\u4e50\u56ed\u91cc\u5b8c\u6210';
     this.statusBarItem.command = 'gophersEden.openDock';
 
-    this.disposables.push(...Object.values(this.petDecorations), this.statusBarItem);
+    this.disposables.push(
+      ...Object.values(this.petDecorations),
+      ...Object.values(this.furnitureDecorations),
+      this.statusBarItem,
+    );
   }
 
   public async initialize(): Promise<void> {
+    await this.stateStore.initialize();
+
     this.disposables.push(this.registerSidebar());
     this.disposables.push(this.registerDock());
     this.disposables.push(this.registerCommands());
@@ -95,7 +140,7 @@ class EdenController implements vscode.Disposable {
     this.statusBarItem.show();
 
     const activeEditor = vscode.window.activeTextEditor;
-    if (activeEditor) {
+    if (activeEditor && this.isEligibleEditor(activeEditor)) {
       await this.stateStore.setPetAnchor(
         activeEditor.document.uri.toString(),
         activeEditor.selection.active.line,
@@ -168,14 +213,14 @@ class EdenController implements vscode.Disposable {
       vscode.commands.registerCommand('gophersEden.renamePet', async () => {
         await this.renamePet();
       }),
-      vscode.commands.registerCommand('gophersEden.placePiano', async () => {
-        await this.placePiano();
-      }),
       vscode.commands.registerCommand('gophersEden.switchTheme', async (theme?: string) => {
         if (theme === 'cyber-oasis' || theme === 'pixel-meadow') {
           await this.stateStore.setTheme(theme);
           await this.renderAndSync();
         }
+      }),
+      vscode.commands.registerCommand('gophersEden.toggleEditorPet', async () => {
+        await this.toggleEditorPet();
       }),
     );
   }
@@ -205,68 +250,71 @@ class EdenController implements vscode.Disposable {
   }
 
   private async handleSidebarMessage(message: SidebarMessage): Promise<void> {
-    if (message.type === 'ready') {
-      await this.refreshStateDisplay();
-      return;
-    }
-
-    if (message.type === 'openDock') {
-      await this.openDock();
-      return;
-    }
-
-    if (message.type === 'renamePet') {
-      await this.renamePet();
-      return;
-    }
-
-    if (message.type === 'placePiano') {
-      await this.placePiano();
-      return;
-    }
-
-    if (message.type === 'toggleEditorPet') {
-      await this.toggleEditorPet();
-      return;
-    }
-
-    if (message.type === 'setTheme') {
-      await this.stateStore.setTheme(message.theme);
-      await this.renderAndSync();
+    switch (message.type) {
+      case 'ready':
+        await this.refreshStateDisplay();
+        return;
+      case 'openDock':
+        await this.openDock();
+        return;
+      case 'renamePet':
+        await this.renamePet();
+        return;
+      case 'toggleEditorPet':
+        await this.toggleEditorPet();
+        return;
+      case 'returnAllPlacements':
+        await this.returnAllPlacementsToInventory();
+        return;
+      case 'setTheme':
+        await this.stateStore.setTheme(message.theme);
+        await this.renderAndSync();
+        return;
+      case 'buyItem':
+        await this.buyItem(message.kind);
+        return;
+      case 'placeFurniture':
+        await this.placeFurniture(message.kind, message.anchorType);
+        return;
+      case 'placementAction':
+        await this.handlePlacementAction(message.id, message.action);
+        return;
+      default:
+        return;
     }
   }
 
   private async handleDockMessage(message: DockMessage): Promise<void> {
-    if (message.type === 'ready') {
-      await this.refreshStateDisplay();
-      return;
-    }
-
-    if (message.type === 'renamePet') {
-      await this.renamePet();
-      return;
-    }
-
-    if (message.type === 'placePiano') {
-      await this.placePiano();
-      return;
-    }
-
-    if (message.type === 'toggleEditorPet') {
-      await this.toggleEditorPet();
-      return;
-    }
-
-    if (message.type === 'movePet') {
-      await this.stateStore.setPetDockPosition({ x: message.x, y: message.y });
-      await this.refreshStateDisplay();
-      this.renderDebounced();
-      return;
-    }
-
-    if (message.type === 'moveFurniture') {
-      await this.stateStore.movePlacement(message.id, { x: message.x, y: message.y });
-      await this.refreshStateDisplay();
+    switch (message.type) {
+      case 'ready':
+        await this.refreshStateDisplay();
+        return;
+      case 'renamePet':
+        await this.renamePet();
+        return;
+      case 'toggleEditorPet':
+        await this.toggleEditorPet();
+        return;
+      case 'openHabitat':
+        await this.openHabitat();
+        return;
+      case 'returnAllPlacements':
+        await this.returnAllPlacementsToInventory();
+        return;
+      case 'movePet':
+        await this.stateStore.setPetDockPosition({ x: message.x, y: message.y });
+        await this.refreshStateDisplay();
+        this.renderDebounced();
+        return;
+      case 'moveFurniture':
+        await this.stateStore.movePlacement(message.id, { x: message.x, y: message.y });
+        await this.renderAndSync();
+        return;
+      case 'placementAction':
+        await this.handlePlacementAction(message.id, message.action);
+        return;
+      default:
+        return;
     }
   }
 
@@ -284,7 +332,7 @@ class EdenController implements vscode.Disposable {
     const currentName = this.stateStore.getState().petName;
     const nextName = await vscode.window.showInputBox({
       title: '\u7ed9\u5ba0\u7269\u8d77\u540d',
-      prompt: '\u8f93\u5165\u4e00\u4e2a\u4f60\u559c\u6b22\u7684\u540d\u5b57\uff0c\u5b83\u4f1a\u663e\u793a\u5728\u5ba0\u7269\u5934\u9876\u3002',
+      prompt: '\u8f93\u5165\u4e00\u4e2a\u4f60\u559c\u6b22\u7684\u540d\u5b57\uff0c\u5b83\u4f1a\u663e\u793a\u5728\u4fa7\u8fb9\u680f\u548c\u5e95\u90e8\u4e50\u56ed\u91cc\u3002',
       value: currentName,
       validateInput: (value) =>
         value.trim().length === 0 ? '\u540d\u5b57\u4e0d\u80fd\u4e3a\u7a7a\u3002' : undefined,
@@ -304,14 +352,182 @@ class EdenController implements vscode.Disposable {
     await this.renderAndSync();
   }
 
-  private async placePiano(): Promise<void> {
-    await this.stateStore.addPiano();
-    await this.refreshStateDisplay();
-    await this.openDock();
+  private async buyItem(kind: FurnitureKind): Promise<void> {
+    try {
+      await this.stateStore.purchaseItem(kind);
+      const item = SHOP_ITEMS.find((entry) => entry.kind === kind);
+      if (item) {
+        void vscode.window.setStatusBarMessage(`\u5df2\u8d2d\u4e70 ${item.name}\uff0c\u5df2\u653e\u5165\u80cc\u5305\u3002`, 2600);
+      }
+      await this.renderAndSync();
+    } catch (error) {
+      await vscode.window.showWarningMessage(toErrorMessage(error));
+    }
+  }
+
+  private async placeFurniture(
+    kind: FurnitureKind,
+    anchorType: FurnitureAnchorType,
+  ): Promise<void> {
+    try {
+      if (anchorType === 'dock') {
+        await this.stateStore.placeFurnitureInDock(kind);
+        await this.renderAndSync();
+        await this.openDock();
+        return;
+      }
+
+      const editor = this.getPlaceableEditor();
+      if (!editor) {
+        await vscode.window.showWarningMessage('\u8bf7\u5148\u6253\u5f00\u4e00\u4e2a\u672c\u5730\u6587\u4ef6\uff0c\u518d\u628a\u5bb6\u5177\u6446\u5230\u4ee3\u7801\u533a\u3002');
+        return;
+      }
+
+      await this.stateStore.placeFurnitureInEditor(
+        kind,
+        anchorType,
+        editor.document.uri.toString(),
+        editor.selection.active.line,
+      );
+      await this.stateStore.setPetAnchor(editor.document.uri.toString(), editor.selection.active.line);
+      await this.renderAndSync();
+    } catch (error) {
+      await vscode.window.showWarningMessage(toErrorMessage(error));
+    }
+  }
+
+  private async handlePlacementAction(id: string, action: string): Promise<void> {
+    const placement = this.stateStore.getState().placedFurniture.find((item) => item.id === id);
+    if (!placement) {
+      return;
+    }
+
+    try {
+      switch (action) {
+        case 'return':
+          await this.stateStore.returnPlacementToInventory(id);
+          break;
+        case 'delete':
+          await this.stateStore.deletePlacement(id);
+          break;
+        case 'to-dock':
+          await this.stateStore.changePlacementAnchor(id, 'dock');
+          await this.openDock();
+          break;
+        case 'to-line-bind': {
+          const context = this.resolvePlacementEditorContext(placement);
+          if (!context) {
+            await vscode.window.showWarningMessage('\u6ca1\u6709\u53ef\u7528\u7684\u6587\u4ef6\u7f16\u8f91\u5668\uff0c\u65e0\u6cd5\u5207\u56de\u8ddf\u884c\u6a21\u5f0f\u3002');
+            return;
+          }
+
+          await this.stateStore.changePlacementAnchor(id, 'line-bind', context);
+          break;
+        }
+        case 'to-viewport-float': {
+          const context = this.resolvePlacementEditorContext(placement);
+          if (!context) {
+            await vscode.window.showWarningMessage('\u6ca1\u6709\u53ef\u7528\u7684\u6587\u4ef6\u7f16\u8f91\u5668\uff0c\u65e0\u6cd5\u5207\u56de\u6d6e\u5c42\u6a21\u5f0f\u3002');
+            return;
+          }
+
+          await this.stateStore.changePlacementAnchor(id, 'viewport-float', context);
+          break;
+        }
+        case 'nudge-left':
+          await this.stateStore.nudgePlacement(id, -0.05, 0);
+          break;
+        case 'nudge-right':
+          await this.stateStore.nudgePlacement(id, 0.05, 0);
+          break;
+        case 'nudge-up':
+          if (placement.anchorType === 'line-bind') {
+            await this.stateStore.shiftPlacementLine(id, -1);
+          } else {
+            await this.stateStore.nudgePlacement(id, 0, -0.05);
+          }
+          break;
+        case 'nudge-down':
+          if (placement.anchorType === 'line-bind') {
+            await this.stateStore.shiftPlacementLine(id, 1);
+          } else {
+            await this.stateStore.nudgePlacement(id, 0, 0.05);
+          }
+          break;
+        default:
+          return;
+      }
+
+      await this.renderAndSync();
+    } catch (error) {
+      await vscode.window.showWarningMessage(toErrorMessage(error));
+    }
+  }
+
+  private async returnAllPlacementsToInventory(): Promise<void> {
+    const placedCount = this.stateStore.getState().placedFurniture.length;
+    if (placedCount === 0) {
+      void vscode.window.setStatusBarMessage('\u5f53\u524d\u6ca1\u6709\u5df2\u6446\u653e\u5bb6\u5177\u9700\u8981\u6536\u56de\u3002', 2200);
+      return;
+    }
+
+    await this.stateStore.returnAllPlacementsToInventory();
+    await this.renderAndSync();
+    void vscode.window.setStatusBarMessage(`\u5df2\u5c06 ${placedCount} \u4e2a\u6446\u4ef6\u5168\u90e8\u6536\u56de\u80cc\u5305\u3002`, 2800);
+  }
+
+  private resolvePlacementEditorContext(
+    placement: PlacedFurniture,
+  ): { documentUri: string; line: number } | undefined {
+    const editor = this.getPlaceableEditor();
+    if (editor) {
+      return {
+        documentUri: editor.document.uri.toString(),
+        line: editor.selection.active.line,
+      };
+    }
+
+    if (placement.documentUri) {
+      return {
+        documentUri: placement.documentUri,
+        line: placement.line,
+      };
+    }
+
+    const state = this.stateStore.getState();
+    if (state.petAnchorDocument) {
+      return {
+        documentUri: state.petAnchorDocument,
+        line: state.petAnchorLine,
+      };
+    }
+
+    return undefined;
+  }
+
+  private getPlaceableEditor(): vscode.TextEditor | undefined {
+    return vscode.window.visibleTextEditors.find((editor) => this.isEligibleEditor(editor))
+      ?? (vscode.window.activeTextEditor && this.isEligibleEditor(vscode.window.activeTextEditor)
+        ? vscode.window.activeTextEditor
+        : undefined);
+  }
+
+  private isEligibleEditor(editor: vscode.TextEditor | undefined): editor is vscode.TextEditor {
+    return !!editor && editor.document.uri.scheme === 'file' && !this.isStateFileUri(editor.document.uri);
+  }
+
+  private isStateFileUri(uri: vscode.Uri): boolean {
+    const stateFileUri = this.stateStore.getStateFileUri();
+    return !!stateFileUri && stateFileUri.toString() === uri.toString();
   }
 
   private async handleTextDocumentChange(event: vscode.TextDocumentChangeEvent): Promise<void> {
-    if (event.document.uri.scheme !== 'file') {
+    if (event.document.uri.scheme !== 'file' || this.isStateFileUri(event.document.uri)) {
+      return;
+    }
+
+    if (!isResourceTrackedDocument(event.document)) {
+      this.renderDebounced();
       return;
     }
 
@@ -341,7 +557,7 @@ class EdenController implements vscode.Disposable {
       (editor) => editor.document.uri.toString() === event.document.uri.toString(),
     );
 
-    if (matchingEditor) {
+    if (matchingEditor && this.isEligibleEditor(matchingEditor)) {
       await this.stateStore.setPetAnchor(
         matchingEditor.document.uri.toString(),
         matchingEditor.selection.active.line,
@@ -352,6 +568,10 @@ class EdenController implements vscode.Disposable {
   }
 
   private async handleSelectionChange(event: vscode.TextEditorSelectionChangeEvent): Promise<void> {
+    if (!this.isEligibleEditor(event.textEditor)) {
+      return;
+    }
+
     await this.stateStore.setPetAnchor(
       event.textEditor.document.uri.toString(),
       event.selections[0]?.active.line ?? 0,
@@ -360,7 +580,7 @@ class EdenController implements vscode.Disposable {
   }
 
   private async handleActiveEditorChange(editor: vscode.TextEditor | undefined): Promise<void> {
-    if (!editor) {
+    if (!this.isEligibleEditor(editor)) {
       return;
     }
 
@@ -447,6 +667,7 @@ class EdenController implements vscode.Disposable {
     return {
       state,
       editorPet: toEditorPetUiState(state, target, this.dockVisible),
+      shopItems: SHOP_ITEMS,
     };
   }
 
@@ -463,37 +684,62 @@ class EdenController implements vscode.Disposable {
 
   private async render(): Promise<void> {
     const state = this.stateStore.getState();
-    const target = this.resolvePetRenderTarget(state);
+    const petTarget = this.resolvePetRenderTarget(state);
+    const furnitureTargets = this.resolveFurnitureTargets(state);
     const petMood = toPetMood(state.petStatus);
 
     for (const editor of vscode.window.visibleTextEditors) {
       clearPetDecorations(editor, this.petDecorations);
+      clearFurnitureDecorations(editor, this.furnitureDecorations);
     }
 
     if (
-      target.reason !== 'visible' ||
-      !target.editor ||
-      target.displayLine === undefined ||
-      target.anchorLine === undefined
+      petTarget.reason === 'visible' &&
+      petTarget.editor &&
+      petTarget.displayLine !== undefined &&
+      petTarget.anchorLine !== undefined
     ) {
-      return;
-    }
+      const anchorRange = endOfLineRange(petTarget.editor.document, petTarget.anchorLine);
+      const activeDecoration = this.petDecorations[petMood];
+      const topOffset = computeTopOffset(petTarget.editor, petTarget.anchorLine, petTarget.displayLine) + (petTarget.topOffset ?? 0);
 
-    const anchorRange = endOfLineRange(target.editor.document, target.anchorLine);
-    const activeDecoration = this.petDecorations[petMood];
-    const topOffset = computeTopOffset(target.editor, target.anchorLine, target.displayLine) + (target.topOffset ?? 0);
-
-    target.editor.setDecorations(activeDecoration, [
-      {
-        range: anchorRange,
-        renderOptions: {
-          after: {
-            margin: `0 0 0 ${target.mode === 'dock-edge' ? PET_EDGE_OFFSET_X : PET_FLOAT_OFFSET_X}px`,
-            textDecoration: buildPetLayerCss(topOffset),
+      petTarget.editor.setDecorations(activeDecoration, [
+        {
+          range: anchorRange,
+          renderOptions: {
+            after: {
+              margin: `0 0 0 ${petTarget.mode === 'dock-edge' ? PET_EDGE_OFFSET_X : PET_FLOAT_OFFSET_X}px`,
+              textDecoration: buildOverlayCss(topOffset),
+            },
           },
         },
-      },
-    ]);
+      ]);
+    }
+
+    const grouped = new Map<vscode.TextEditor, Partial<Record<FurnitureKind, vscode.DecorationOptions[]>>>();
+
+    for (const target of furnitureTargets) {
+      const optionsForEditor = grouped.get(target.editor) ?? {};
+      const options = optionsForEditor[target.placement.kind] ?? [];
+      options.push({
+        range: endOfLineRange(target.editor.document, target.anchorLine),
+        hoverMessage: `${getFurnitureLabel(target.placement.kind)} ? ${formatAnchorType(target.placement.anchorType)}`,
+        renderOptions: {
+          after: {
+            margin: `0 0 0 ${target.marginLeft}px`,
+            textDecoration: buildOverlayCss(target.topOffset),
+          },
+        },
+      });
+      optionsForEditor[target.placement.kind] = options;
+      grouped.set(target.editor, optionsForEditor);
+    }
+
+    for (const [editor, perKind] of grouped.entries()) {
+      for (const kind of Object.keys(this.furnitureDecorations) as FurnitureKind[]) {
+        editor.setDecorations(this.furnitureDecorations[kind], perKind[kind] ?? []);
+      }
+    }
   }
 
   private resolvePetRenderTarget(state: EdenState): PetRenderTarget {
@@ -501,7 +747,7 @@ class EdenController implements vscode.Disposable {
       return { reason: 'disabled' };
     }
 
-    const editor = pickPetEditor(state);
+    const editor = this.getPetEditor(state);
     if (!editor || editor.document.uri.scheme !== 'file') {
       return { reason: 'no-editor' };
     }
@@ -560,6 +806,88 @@ class EdenController implements vscode.Disposable {
     };
   }
 
+  private getPetEditor(state: EdenState): vscode.TextEditor | undefined {
+    const anchoredEditor = vscode.window.visibleTextEditors.find(
+      (editor) => editor.document.uri.toString() === state.petAnchorDocument && this.isEligibleEditor(editor),
+    );
+
+    if (anchoredEditor) {
+      return anchoredEditor;
+    }
+
+    return this.getPlaceableEditor();
+  }
+
+  private resolveFurnitureTargets(state: EdenState): readonly FurnitureRenderTarget[] {
+    const targets: FurnitureRenderTarget[] = [];
+
+    for (const placement of state.placedFurniture) {
+      if (placement.anchorType === 'dock') {
+        continue;
+      }
+
+      const editor = pickFurnitureEditor(placement);
+      if (!editor || editor.document.uri.scheme !== 'file') {
+        continue;
+      }
+
+      const metrics = collectViewportMetrics(editor, placement.line);
+      if (!metrics || !hasViewportRightSafeSpace(metrics)) {
+        continue;
+      }
+
+      if (placement.anchorType === 'line-bind') {
+        if (
+          placement.line < metrics.visibleRange.start.line ||
+          placement.line > metrics.visibleRange.end.line
+        ) {
+          continue;
+        }
+
+        const displayLine = clampLine(placement.line, editor.document.lineCount);
+        const anchorLine = pickRightEdgeAnchorLine(editor, metrics, displayLine, FURNITURE_MAX_LINE_LENGTH, false);
+        if (anchorLine === undefined || !hasInlineFurnitureRoom(editor, displayLine, anchorLine)) {
+          continue;
+        }
+
+        targets.push({
+          placement,
+          editor,
+          displayLine,
+          anchorLine,
+          topOffset:
+            computeTopOffset(editor, anchorLine, displayLine) +
+            Math.round((placement.y - 0.5) * resolveLineHeight(editor) * 0.35),
+          marginLeft: computeFurnitureMarginLeft(placement, 'line-bind'),
+        });
+        continue;
+      }
+
+      const viewportDisplayLine = pickViewportFloatLine(metrics, placement.y);
+      const viewportAnchorLine = pickRightEdgeAnchorLine(
+        editor,
+        metrics,
+        viewportDisplayLine,
+        FURNITURE_MAX_LINE_LENGTH,
+        false,
+      );
+      if (viewportAnchorLine === undefined || !hasInlineFurnitureRoom(editor, viewportDisplayLine, viewportAnchorLine)) {
+        continue;
+      }
+
+      targets.push({
+        placement,
+        editor,
+        displayLine: viewportDisplayLine,
+        anchorLine: viewportAnchorLine,
+        topOffset: computeTopOffset(editor, viewportAnchorLine, viewportDisplayLine),
+        marginLeft: computeFurnitureMarginLeft(placement, 'viewport-float'),
+      });
+    }
+
+    return targets;
+  }
+
   private createPetDecoration(assetUri: vscode.Uri): vscode.TextEditorDecorationType {
     return vscode.window.createTextEditorDecorationType({
       after: {
@@ -569,6 +897,20 @@ class EdenController implements vscode.Disposable {
         margin: `0 0 0 ${PET_FLOAT_OFFSET_X}px`,
       },
       opacity: '0.74',
+      rangeBehavior: vscode.DecorationRangeBehavior.ClosedClosed,
+    });
+  }
+
+  private createFurnitureDecoration(kind: FurnitureKind): vscode.TextEditorDecorationType {
+    const size = FURNITURE_ICON_SIZES[kind];
+    return vscode.window.createTextEditorDecorationType({
+      after: {
+        contentIconPath: vscode.Uri.joinPath(this.context.extensionUri, 'media', getFurnitureAssetFile(kind)),
+        width: `${size}px`,
+        height: `${size}px`,
+        margin: `0 0 0 ${FURNITURE_BASE_OFFSET_X}px`,
+      },
+      opacity: FURNITURE_OPACITY,
       rangeBehavior: vscode.DecorationRangeBehavior.ClosedClosed,
     });
   }
@@ -590,6 +932,20 @@ function clearPetDecorations(
   for (const decoration of Object.values(petDecorations)) {
     editor.setDecorations(decoration, empty);
   }
+}
+
+function clearFurnitureDecorations(
+  editor: vscode.TextEditor,
+  furnitureDecorations: Record<FurnitureKind, vscode.TextEditorDecorationType>,
+): void {
+  const empty: vscode.DecorationOptions[] = [];
+  for (const decoration of Object.values(furnitureDecorations)) {
+    editor.setDecorations(decoration, empty);
+  }
+}
+
+function isResourceTrackedDocument(document: vscode.TextDocument): boolean {
+  return document.languageId === 'go' || document.uri.fsPath.toLowerCase().endsWith('.go');
 }
 
 function countMeaningfulLines(text: string): number {
@@ -629,11 +985,9 @@ function clampLine(line: number, lineCount: number): number {
   return Math.min(Math.max(0, line), lineCount - 1);
 }
 
-function pickPetEditor(state: EdenState): vscode.TextEditor | undefined {
-  return (
-    vscode.window.visibleTextEditors.find(
-      (editor) => editor.document.uri.toString() === state.petAnchorDocument,
-    ) ?? vscode.window.activeTextEditor
+function pickFurnitureEditor(placement: PlacedFurniture): vscode.TextEditor | undefined {
+  return vscode.window.visibleTextEditors.find(
+    (editor) => editor.document.uri.toString() === placement.documentUri,
   );
 }
 
@@ -818,6 +1172,12 @@ function pickRightEdgeAnchorLine(
   return bestLine;
 }
 
+function pickViewportFloatLine(metrics: ViewportMetrics, y: number): number {
+  const viewportHeight = metrics.visibleRange.end.line - metrics.visibleRange.start.line;
+  const preferred = metrics.visibleRange.start.line + Math.round(viewportHeight * clampNumber(y, 0.18, 0.84));
+  return clampLine(preferred, metrics.visibleRange.end.line + 1);
+}
+
 function dockEdgeTopOffset(editor: vscode.TextEditor): number {
   const lineHeight = resolveLineHeight(editor);
   return Math.max(2, Math.round(lineHeight * 0.18));
@@ -861,7 +1221,17 @@ function hasInlinePetRoom(
   return displayLength < PET_MAX_FLOAT_LINE_LENGTH;
 }
 
-function buildPetLayerCss(topOffset: number): string {
+function hasInlineFurnitureRoom(
+  editor: vscode.TextEditor,
+  displayLine: number,
+  anchorLine: number,
+): boolean {
+  const displayLength = editor.document.lineAt(displayLine).text.trimEnd().length;
+  const anchorLength = editor.document.lineAt(anchorLine).text.trimEnd().length;
+  return displayLength < FURNITURE_MAX_LINE_LENGTH && anchorLength < FURNITURE_MAX_LINE_LENGTH;
+}
+
+function buildOverlayCss(topOffset: number): string {
   return [
     'none',
     'position: relative',
@@ -870,6 +1240,14 @@ function buildPetLayerCss(topOffset: number): string {
     'z-index: 10',
     'vertical-align: top',
   ].join('; ');
+}
+
+function computeFurnitureMarginLeft(
+  placement: PlacedFurniture,
+  anchorType: Exclude<FurnitureAnchorType, 'dock'>,
+): number {
+  const base = anchorType === 'viewport-float' ? FURNITURE_FLOAT_OFFSET_X : FURNITURE_BASE_OFFSET_X;
+  return Math.round(base + clampNumber(placement.x, 0.04, 0.96) * 42);
 }
 
 function clampNumber(value: number, min: number, max: number): number {
@@ -895,7 +1273,7 @@ function toEditorPetUiState(
       enabled: true,
       actuallyVisible: true,
       toggleLabel: '\u9690\u85cf\u4ee3\u7801\u533a\u5ba0\u7269',
-      statusText: '\u5e95\u90e8\u4e50\u56ed\u5df2\u6253\u5f00\uff0c\u5ba0\u7269\u6b63\u8d74\u5728\u9762\u677f\u4e0a\u8fb9\u7f18\u966a\u4f60\u5199\u4ee3\u7801\u3002',
+      statusText: '\u5e95\u90e8\u4e50\u56ed\u5df2\u6253\u5f00\uff0c\u5ba0\u7269\u6b63\u5728\u8d34\u7740\u9762\u677f\u4e0a\u8fb9\u7f18\u966a\u4f60\u5199\u4ee3\u7801\u3002',
     };
   }
 
@@ -904,7 +1282,7 @@ function toEditorPetUiState(
       enabled: true,
       actuallyVisible: true,
       toggleLabel: '\u9690\u85cf\u4ee3\u7801\u533a\u5ba0\u7269',
-      statusText: '\u4ee3\u7801\u533a\u5ba0\u7269\u5df2\u5f00\u542f\uff0c\u5f53\u524d\u6b63\u5728\u89c6\u53e3\u53f3\u4fa7\u7a7a\u767d\u533a\u8f7b\u91cf\u663e\u793a\u3002',
+      statusText: '\u4ee3\u7801\u533a\u5ba0\u7269\u5df2\u5f00\u542f\uff0c\u5f53\u524d\u4f1a\u4f18\u5148\u663e\u793a\u5728\u89c6\u53e3\u53f3\u4fa7\u7684\u5b89\u5168\u7a7a\u767d\u533a\u3002',
     };
   }
 
@@ -913,7 +1291,7 @@ function toEditorPetUiState(
       enabled: true,
       actuallyVisible: false,
       toggleLabel: '\u9690\u85cf\u4ee3\u7801\u533a\u5ba0\u7269',
-      statusText: '\u5e95\u90e8\u4e50\u56ed\u5df2\u6253\u5f00\uff0c\u4f46\u5f53\u524d\u5e95\u8fb9\u533a\u57df\u53f3\u4fa7\u7a7a\u95f4\u4e0d\u591f\u5b89\u5168\uff0c\u6240\u4ee5\u6682\u65f6\u4e0d\u8ba9\u5ba0\u7269\u63a2\u51fa\u3002',
+      statusText: '\u5e95\u90e8\u4e50\u56ed\u5df2\u6253\u5f00\uff0c\u4f46\u5f53\u524d\u5e95\u8fb9\u53f3\u4fa7\u5b89\u5168\u7a7a\u95f4\u4e0d\u591f\uff0c\u6240\u4ee5\u5ba0\u7269\u6682\u65f6\u4e0d\u63a2\u5934\u3002',
     };
   }
 
@@ -930,7 +1308,7 @@ function toEditorPetUiState(
     enabled: true,
     actuallyVisible: false,
     toggleLabel: '\u9690\u85cf\u4ee3\u7801\u533a\u5ba0\u7269',
-    statusText: '\u4ee3\u7801\u533a\u5ba0\u7269\u5df2\u5f00\u542f\uff0c\u5207\u6362\u5230\u53ef\u663e\u793a\u7684\u4ee3\u7801\u7f16\u8f91\u5668\u540e\u4f1a\u5c1d\u8bd5\u51fa\u73b0\u3002',
+    statusText: '\u4ee3\u7801\u533a\u5ba0\u7269\u5df2\u5f00\u542f\uff0c\u5207\u6362\u5230\u53ef\u663e\u793a\u7684\u672c\u5730\u6587\u4ef6\u7f16\u8f91\u5668\u540e\u4f1a\u5c1d\u8bd5\u51fa\u73b0\u3002',
   };
 }
 
@@ -944,4 +1322,20 @@ function toPetMood(status: PetStatus): PetMood {
   }
 
   return 'normal';
+}
+
+function formatAnchorType(anchorType: FurnitureAnchorType): string {
+  if (anchorType === 'dock') {
+    return '\u5e95\u90e8\u4e50\u56ed';
+  }
+
+  if (anchorType === 'viewport-float') {
+    return '\u4ee3\u7801\u533a\u6d6e\u5c42';
+  }
+
+  return '\u8ddf\u884c\u6446\u653e';
+}
+
+function toErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : '\u53d1\u751f\u4e86\u4e00\u4e2a\u672a\u77e5\u9519\u8bef\u3002';
 }

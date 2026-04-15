@@ -1,18 +1,42 @@
-(function () {
+﻿(function () {
   const vscode = acquireVsCodeApi();
   const body = document.body;
   const stage = document.getElementById('stage');
   const entities = document.getElementById('entities');
   const toggleButton = document.getElementById('dock-editor-pet-toggle');
   const editorPetSummary = document.getElementById('editor-pet-summary');
+  const dockList = document.getElementById('dock-list');
+  const dockEmpty = document.getElementById('dock-empty');
+  const dockSummary = document.getElementById('dock-summary');
+  const dockManageToggle = document.getElementById('dock-manage-toggle');
+  const dockManageBody = document.getElementById('dock-manage-body');
+  const dockFoldIndicator = document.getElementById('dock-fold-indicator');
+
   const petImages = {
     normal: body.dataset.petNormal,
     startled: body.dataset.petAlert,
     working: body.dataset.petWorking,
   };
 
+  const furnitureImages = {
+    piano: body.dataset.assetPiano,
+    bench: body.dataset.assetBench,
+    tree: body.dataset.assetTree,
+    lamp: body.dataset.assetLamp,
+    grass: body.dataset.assetGrass,
+  };
+
+  const labelCopy = {
+    piano: '\u94a2\u7434',
+    bench: '\u957f\u6905',
+    tree: '\u5c0f\u6811',
+    lamp: '\u5c0f\u706f',
+    grass: '\u8349\u5806',
+  };
+
   let latestViewState = null;
   let dragSession = null;
+  let manageOpen = false;
 
   document.addEventListener('click', (event) => {
     const target = event.target;
@@ -23,6 +47,22 @@
     const actionHost = target.closest('[data-action]');
     if (actionHost instanceof HTMLElement) {
       vscode.postMessage({ type: actionHost.dataset.action });
+      return;
+    }
+
+    if (dockManageToggle && target.closest('#dock-manage-toggle')) {
+      manageOpen = !manageOpen;
+      renderManageState();
+      return;
+    }
+
+    const placementHost = target.closest('[data-placement-id][data-placement-action]');
+    if (placementHost instanceof HTMLElement && placementHost.dataset.placementId && placementHost.dataset.placementAction) {
+      vscode.postMessage({
+        type: 'placementAction',
+        id: placementHost.dataset.placementId,
+        action: placementHost.dataset.placementAction,
+      });
     }
   });
 
@@ -34,6 +74,10 @@
 
     const entity = target.closest('[data-entity]');
     if (!(entity instanceof HTMLElement)) {
+      return;
+    }
+
+    if (entity.dataset.entity !== 'pet' && entity.dataset.entity !== 'furniture') {
       return;
     }
 
@@ -79,6 +123,8 @@
 
     const state = latestViewState.state;
     const editorPet = latestViewState.editorPet;
+    const dockPlacements = (state.placedFurniture || []).filter((placement) => placement.anchorType === 'dock');
+
     entities.innerHTML = '';
 
     if (toggleButton) {
@@ -107,19 +153,50 @@
     pet.appendChild(petLabel);
     entities.appendChild(pet);
 
-    state.placements.forEach((placement) => {
-      const piano = document.createElement('div');
-      piano.className = 'entity piano';
-      piano.dataset.entity = 'furniture';
-      piano.dataset.id = placement.id;
-      applyPosition(piano, placement);
+    dockPlacements.forEach((placement) => {
+      const furniture = document.createElement('div');
+      furniture.className = `entity furniture ${placement.kind}`;
+      furniture.dataset.entity = 'furniture';
+      furniture.dataset.id = placement.id;
+      applyPosition(furniture, placement);
 
-      const pianoImage = document.createElement('img');
-      pianoImage.alt = '钢琴';
-      pianoImage.src = body.dataset.piano;
-      piano.appendChild(pianoImage);
-      entities.appendChild(piano);
+      const image = document.createElement('img');
+      image.alt = labelCopy[placement.kind] || placement.kind;
+      image.src = furnitureImages[placement.kind];
+      furniture.appendChild(image);
+      entities.appendChild(furniture);
     });
+
+    dockSummary.textContent = `${dockPlacements.length} \u4e2a\u6446\u4ef6`;
+    dockEmpty.classList.toggle('is-hidden', dockPlacements.length > 0);
+    dockList.innerHTML = dockPlacements.map((placement) => `
+      <article class="dock-card">
+        <div class="dock-card-main">
+          <img src="${furnitureImages[placement.kind]}" alt="${labelCopy[placement.kind]}" class="item-icon" />
+          <div>
+            <strong>${labelCopy[placement.kind]}</strong>
+            <p class="dock-copy">\u8fd9\u91cc\u53ef\u4ee5\u76f4\u63a5\u62d6\u52a8\u4f4d\u7f6e\uff1b\u4e5f\u53ef\u4ee5\u5207\u56de\u4ee3\u7801\u533a\u6295\u5f71\u6a21\u5f0f\u3002</p>
+          </div>
+        </div>
+        <div class="dock-actions">
+          <button class="mini-button" type="button" data-placement-id="${placement.id}" data-placement-action="to-line-bind">\u6539\u4e3a\u8ddf\u884c</button>
+          <button class="mini-button" type="button" data-placement-id="${placement.id}" data-placement-action="to-viewport-float">\u6539\u4e3a\u6d6e\u5c42</button>
+          <button class="mini-button" type="button" data-placement-id="${placement.id}" data-placement-action="return">\u6536\u56de\u80cc\u5305</button>
+          <button class="mini-button danger" type="button" data-placement-id="${placement.id}" data-placement-action="delete">\u5220\u9664</button>
+        </div>
+      </article>
+    `).join('');
+
+    renderManageState();
+  }
+
+  function renderManageState() {
+    if (!dockManageBody || !dockFoldIndicator) {
+      return;
+    }
+
+    dockManageBody.classList.toggle('is-hidden', !manageOpen);
+    dockFoldIndicator.textContent = manageOpen ? '\u6536\u8d77' : '\u5c55\u5f00';
   }
 
   function applyPosition(element, point) {
