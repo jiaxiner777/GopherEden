@@ -12,6 +12,7 @@ import {
   EditorPetUiState,
   FurnitureAnchorType,
   FurnitureKind,
+  PetEffectKind,
   PetStatus,
   PlacedFurniture,
 } from './types';
@@ -56,23 +57,26 @@ interface ViewportMetrics {
   readonly mediumLineCount: number;
 }
 
-const PET_ICON_SIZE = 24;
-const PET_FLOAT_OFFSET_X = 96;
-const PET_EDGE_OFFSET_X = 72;
+const PET_BASE_ICON_SIZE = 72;
+const PET_SCALE_MIN = 70;
+const PET_SCALE_MAX = 220;
+const PET_FLOAT_OFFSET_X = 118;
+const PET_EDGE_OFFSET_X = 98;
 const PET_MAX_ANCHOR_LENGTH = 132;
 const PET_MAX_FLOAT_LINE_LENGTH = 116;
 const PET_MAX_EDGE_LINE_LENGTH = 92;
 const FURNITURE_MAX_LINE_LENGTH = 142;
-const FURNITURE_BASE_OFFSET_X = 84;
-const FURNITURE_FLOAT_OFFSET_X = 92;
-const FURNITURE_OPACITY = '0.72';
+const FURNITURE_BASE_OFFSET_X = 88;
+const FURNITURE_FLOAT_OFFSET_X = 98;
+const FURNITURE_OPACITY = '0.74';
+const PET_ANIMATION_INTERVAL_MS = 650;
 
 const FURNITURE_ICON_SIZES: Readonly<Record<FurnitureKind, number>> = {
-  piano: 28,
-  bench: 28,
-  tree: 32,
+  piano: 30,
+  bench: 26,
+  tree: 30,
   lamp: 24,
-  grass: 24,
+  grass: 26,
 };
 
 class EdenController implements vscode.Disposable {
@@ -81,11 +85,16 @@ class EdenController implements vscode.Disposable {
   private readonly stateStore: EdenStateStore;
   private readonly sidebarProvider: EdenSidebarProvider;
   private readonly dockProvider: EdenDockProvider;
-  private readonly petDecorations: Record<PetMood, vscode.TextEditorDecorationType>;
+  private petDecorations: Record<PetMood, readonly vscode.TextEditorDecorationType[]>;
   private readonly furnitureDecorations: Record<FurnitureKind, vscode.TextEditorDecorationType>;
   private readonly statusBarItem: vscode.StatusBarItem;
 
   private workingAnimationTimer: NodeJS.Timeout | undefined;
+  private petAnimationTimer: NodeJS.Timeout | undefined;
+  private petEffectTimer: NodeJS.Timeout | undefined;
+  private petAnimationTick = 0;
+  private petEffect: PetEffectKind | null = null;
+  private petEffectNonce = 0;
   private hasErrors = false;
   private activityWindow: ActivityWindowEntry[] = [];
   private dockVisible = false;
@@ -106,11 +115,7 @@ class EdenController implements vscode.Disposable {
       void this.renderAndSync();
     }, debounceMs);
 
-    this.petDecorations = {
-      normal: this.createPetDecoration(vscode.Uri.joinPath(this.context.extensionUri, 'media', 'gopher-normal.svg')),
-      alert: this.createPetDecoration(vscode.Uri.joinPath(this.context.extensionUri, 'media', 'gopher-alert.svg')),
-      working: this.createPetDecoration(vscode.Uri.joinPath(this.context.extensionUri, 'media', 'gopher-working.svg')),
-    };
+    this.petDecorations = this.createAllPetDecorations(this.stateStore.getState().editorPetScale);
     this.furnitureDecorations = {
       piano: this.createFurnitureDecoration('piano'),
       bench: this.createFurnitureDecoration('bench'),
@@ -119,12 +124,11 @@ class EdenController implements vscode.Disposable {
       grass: this.createFurnitureDecoration('grass'),
     };
     this.statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
-    this.statusBarItem.text = '$(symbol-misc) Gopher \u5e95\u90e8\u4e50\u56ed';
-    this.statusBarItem.tooltip = '\u771f\u6b63\u7684\u62d6\u62fd\u548c\u4e92\u52a8\u90fd\u653e\u5728\u5e95\u90e8\u4e50\u56ed\u91cc\u5b8c\u6210';
+    this.statusBarItem.text = '$(symbol-misc) Gopher 底部乐园';
+    this.statusBarItem.tooltip = '真正的拖拽和互动都放在底部乐园里完成';
     this.statusBarItem.command = 'gophersEden.openDock';
 
     this.disposables.push(
-      ...Object.values(this.petDecorations),
       ...Object.values(this.furnitureDecorations),
       this.statusBarItem,
     );
@@ -132,12 +136,14 @@ class EdenController implements vscode.Disposable {
 
   public async initialize(): Promise<void> {
     await this.stateStore.initialize();
+    this.rebuildPetDecorations(this.stateStore.getState().editorPetScale);
 
     this.disposables.push(this.registerSidebar());
     this.disposables.push(this.registerDock());
     this.disposables.push(this.registerCommands());
     this.disposables.push(this.registerEventListeners());
     this.statusBarItem.show();
+    this.startAnimationLoop();
 
     const activeEditor = vscode.window.activeTextEditor;
     if (activeEditor && this.isEligibleEditor(activeEditor)) {
@@ -155,6 +161,20 @@ class EdenController implements vscode.Disposable {
     if (this.workingAnimationTimer) {
       clearTimeout(this.workingAnimationTimer);
       this.workingAnimationTimer = undefined;
+    }
+
+    if (this.petAnimationTimer) {
+      clearInterval(this.petAnimationTimer);
+      this.petAnimationTimer = undefined;
+    }
+
+    if (this.petEffectTimer) {
+      clearTimeout(this.petEffectTimer);
+      this.petEffectTimer = undefined;
+    }
+
+    for (const decoration of Object.values(this.petDecorations).flat()) {
+      decoration.dispose();
     }
 
     for (const disposable of this.disposables) {
@@ -213,6 +233,9 @@ class EdenController implements vscode.Disposable {
       vscode.commands.registerCommand('gophersEden.renamePet', async () => {
         await this.renamePet();
       }),
+      vscode.commands.registerCommand('gophersEden.playWithPet', async () => {
+        await this.playWithPet();
+      }),
       vscode.commands.registerCommand('gophersEden.switchTheme', async (theme?: string) => {
         if (theme === 'cyber-oasis' || theme === 'pixel-meadow') {
           await this.stateStore.setTheme(theme);
@@ -260,8 +283,14 @@ class EdenController implements vscode.Disposable {
       case 'renamePet':
         await this.renamePet();
         return;
+      case 'playWithPet':
+        await this.playWithPet();
+        return;
       case 'toggleEditorPet':
         await this.toggleEditorPet();
+        return;
+      case 'setEditorPetScale':
+        await this.setEditorPetScale(message.scale);
         return;
       case 'returnAllPlacements':
         await this.returnAllPlacementsToInventory();
@@ -291,6 +320,9 @@ class EdenController implements vscode.Disposable {
         return;
       case 'renamePet':
         await this.renamePet();
+        return;
+      case 'playWithPet':
+        await this.playWithPet();
         return;
       case 'toggleEditorPet':
         await this.toggleEditorPet();
@@ -346,9 +378,29 @@ class EdenController implements vscode.Disposable {
     await this.renderAndSync();
   }
 
+  private async playWithPet(): Promise<void> {
+    const petName = this.stateStore.getState().petName;
+    this.showPetEffect('heart');
+    void vscode.window.setStatusBarMessage(`${petName} 开心地晃了晃。`, 2200);
+    await this.refreshStateDisplay();
+  }
+
   private async toggleEditorPet(): Promise<void> {
     const current = this.stateStore.getState();
     await this.stateStore.setEditorPetEnabled(!current.editorPetEnabled);
+    await this.renderAndSync();
+  }
+
+  private async setEditorPetScale(scale: number): Promise<void> {
+    const nextScale = sanitizePetScale(scale);
+    const current = this.stateStore.getState();
+    if (current.editorPetScale === nextScale) {
+      await this.refreshStateDisplay();
+      return;
+    }
+
+    await this.stateStore.setEditorPetScale(nextScale);
+    this.rebuildPetDecorations(nextScale);
     await this.renderAndSync();
   }
 
@@ -357,7 +409,8 @@ class EdenController implements vscode.Disposable {
       await this.stateStore.purchaseItem(kind);
       const item = SHOP_ITEMS.find((entry) => entry.kind === kind);
       if (item) {
-        void vscode.window.setStatusBarMessage(`\u5df2\u8d2d\u4e70 ${item.name}\uff0c\u5df2\u653e\u5165\u80cc\u5305\u3002`, 2600);
+        this.showPetEffect('sparkle');
+        void vscode.window.setStatusBarMessage(`已购买 ${item.name}，已放入背包。`, 2600);
       }
       await this.renderAndSync();
     } catch (error) {
@@ -599,7 +652,8 @@ class EdenController implements vscode.Disposable {
 
     if (totalBricks > previousBricks) {
       const earned = totalBricks - previousBricks;
-      void vscode.window.showInformationMessage(`Gopher \u6536\u96c6\u5230\u4e86 ${earned} \u5757\u788e\u7816\u3002`);
+      this.showPetEffect('sparkle');
+      void vscode.window.showInformationMessage(`Gopher 收集到了 ${earned} 块碎砖。`);
     }
   }
 
@@ -633,7 +687,11 @@ class EdenController implements vscode.Disposable {
       ).length;
     }
 
+    const hadErrors = this.hasErrors;
     this.hasErrors = errorCount > 0;
+    if (!hadErrors && this.hasErrors) {
+      this.showPetEffect('alert');
+    }
     await this.refreshComputedStatus();
   }
 
@@ -668,6 +726,9 @@ class EdenController implements vscode.Disposable {
       state,
       editorPet: toEditorPetUiState(state, target, this.dockVisible),
       shopItems: SHOP_ITEMS,
+      petAnimationFrame: this.getPetAnimationFrame(state.petStatus),
+      petEffect: this.petEffect,
+      petEffectNonce: this.petEffectNonce,
     };
   }
 
@@ -700,7 +761,7 @@ class EdenController implements vscode.Disposable {
       petTarget.anchorLine !== undefined
     ) {
       const anchorRange = endOfLineRange(petTarget.editor.document, petTarget.anchorLine);
-      const activeDecoration = this.petDecorations[petMood];
+      const activeDecoration = this.petDecorations[petMood][this.getPetAnimationFrame(state.petStatus)] ?? this.petDecorations[petMood][0];
       const topOffset = computeTopOffset(petTarget.editor, petTarget.anchorLine, petTarget.displayLine) + (petTarget.topOffset ?? 0);
 
       petTarget.editor.setDecorations(activeDecoration, [
@@ -888,15 +949,76 @@ class EdenController implements vscode.Disposable {
     return targets;
   }
 
-  private createPetDecoration(assetUri: vscode.Uri): vscode.TextEditorDecorationType {
+  private startAnimationLoop(): void {
+    if (this.petAnimationTimer) {
+      return;
+    }
+
+    this.petAnimationTimer = setInterval(() => {
+      this.petAnimationTick = (this.petAnimationTick + 1) % 1000;
+      this.renderDebounced();
+      void this.refreshStateDisplay();
+    }, PET_ANIMATION_INTERVAL_MS);
+  }
+
+  private getPetAnimationFrame(status: PetStatus): number {
+    if (status === 'normal') {
+      return Math.floor(this.petAnimationTick / 2) % 2;
+    }
+
+    return this.petAnimationTick % 2;
+  }
+
+  private showPetEffect(kind: PetEffectKind, durationMs = 1400): void {
+    if (this.petEffectTimer) {
+      clearTimeout(this.petEffectTimer);
+      this.petEffectTimer = undefined;
+    }
+
+    this.petEffect = kind;
+    this.petEffectNonce += 1;
+    void this.refreshStateDisplay();
+
+    this.petEffectTimer = setTimeout(() => {
+      this.petEffect = null;
+      this.petEffectTimer = undefined;
+      void this.refreshStateDisplay();
+    }, durationMs);
+  }
+
+  private rebuildPetDecorations(scale: number): void {
+    for (const decoration of Object.values(this.petDecorations).flat()) {
+      decoration.dispose();
+    }
+
+    this.petDecorations = this.createAllPetDecorations(scale);
+  }
+
+  private createAllPetDecorations(scale: number): Record<PetMood, readonly vscode.TextEditorDecorationType[]> {
+    return {
+      normal: this.createPetDecorations('gopher-normal', scale),
+      alert: this.createPetDecorations('gopher-alert', scale),
+      working: this.createPetDecorations('gopher-working', scale),
+    };
+  }
+
+  private createPetDecorations(assetPrefix: string, scale: number): readonly vscode.TextEditorDecorationType[] {
+    const iconSize = Math.round((PET_BASE_ICON_SIZE * sanitizePetScale(scale)) / 100);
+    return [1, 2].map((index) => this.createPetDecoration(
+      vscode.Uri.joinPath(this.context.extensionUri, 'media', `${assetPrefix}-${index}.svg`),
+      iconSize,
+    ));
+  }
+
+  private createPetDecoration(assetUri: vscode.Uri, iconSize: number): vscode.TextEditorDecorationType {
     return vscode.window.createTextEditorDecorationType({
       after: {
         contentIconPath: assetUri,
-        width: `${PET_ICON_SIZE}px`,
-        height: `${PET_ICON_SIZE}px`,
+        width: `${iconSize}px`,
+        height: `${iconSize}px`,
         margin: `0 0 0 ${PET_FLOAT_OFFSET_X}px`,
       },
-      opacity: '0.74',
+      opacity: '0.76',
       rangeBehavior: vscode.DecorationRangeBehavior.ClosedClosed,
     });
   }
@@ -926,11 +1048,13 @@ export function deactivate(): void {}
 
 function clearPetDecorations(
   editor: vscode.TextEditor,
-  petDecorations: Record<PetMood, vscode.TextEditorDecorationType>,
+  petDecorations: Record<PetMood, readonly vscode.TextEditorDecorationType[]>,
 ): void {
   const empty: vscode.DecorationOptions[] = [];
-  for (const decoration of Object.values(petDecorations)) {
-    editor.setDecorations(decoration, empty);
+  for (const frames of Object.values(petDecorations)) {
+    for (const decoration of frames) {
+      editor.setDecorations(decoration, empty);
+    }
   }
 }
 
@@ -945,7 +1069,8 @@ function clearFurnitureDecorations(
 }
 
 function isResourceTrackedDocument(document: vscode.TextDocument): boolean {
-  return document.languageId === 'go' || document.uri.fsPath.toLowerCase().endsWith('.go');
+  const filePath = document.uri.fsPath.toLowerCase();
+  return document.languageId === 'go' || document.languageId === 'java' || filePath.endsWith('.go') || filePath.endsWith('.java');
 }
 
 function countMeaningfulLines(text: string): number {
@@ -1252,6 +1377,10 @@ function computeFurnitureMarginLeft(
 
 function clampNumber(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
+}
+
+function sanitizePetScale(value: number): number {
+  return Math.round(clampNumber(value, PET_SCALE_MIN, PET_SCALE_MAX) / 10) * 10;
 }
 
 function toEditorPetUiState(

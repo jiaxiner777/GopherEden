@@ -1,40 +1,40 @@
-import { FurnitureKind, ShopItem } from './types';
+﻿import { FurnitureKind, ShopItem } from './types';
 
 export const SHOP_ITEMS: readonly ShopItem[] = [
   {
     kind: 'piano',
-    name: '钢琴',
-    description: '低调地放一架琴，提醒自己今天也要优雅地写代码。',
+    name: '像素钢琴',
+    description: '一架暖木色的小钢琴，让底部乐园立刻有了安静又温柔的节奏。',
     priceBricks: 5,
     priceDew: 0,
   },
   {
     kind: 'bench',
-    name: '长椅',
-    description: '适合给 Gopher 午休，也适合给你脑内的小灵感坐一坐。',
+    name: '小木椅',
+    description: '适合让宠物歇脚的小木椅，也适合给你的灵感留一个座位。',
     priceBricks: 3,
     priceDew: 0,
   },
   {
     kind: 'tree',
-    name: '小树',
-    description: '在赛博伊甸园里补一点绿意。',
+    name: '像素盆栽',
+    description: '柔软的绿色会让伊甸园多一点呼吸感，和宠物也更搭。',
     priceBricks: 4,
     priceDew: 1,
   },
   {
     kind: 'lamp',
-    name: '小灯',
-    description: '给夜里的重构现场留一盏温柔的灯。',
-    priceBricks: 2,
+    name: '复古台灯',
+    description: '夜里写代码时，一盏像素台灯会让整个角落更像温暖的小屋。',
+    priceBricks: 3,
     priceDew: 1,
   },
   {
     kind: 'grass',
-    name: '草堆',
-    description: '最轻量的装饰，铺一点氛围感。',
-    priceBricks: 1,
-    priceDew: 0,
+    name: '小游戏机',
+    description: '一台迷你街机，给乐园留下一点轻松又俏皮的像素娱乐感。',
+    priceBricks: 4,
+    priceDew: 1,
   },
 ];
 

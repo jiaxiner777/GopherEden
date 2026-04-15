@@ -1,11 +1,11 @@
-import { FurnitureKind } from './types';
+﻿import { FurnitureKind } from './types';
 
 export const FURNITURE_LABELS: Readonly<Record<FurnitureKind, string>> = {
-  piano: '钢琴',
-  bench: '长椅',
-  tree: '小树',
-  lamp: '小灯',
-  grass: '草堆',
+  piano: '像素钢琴',
+  bench: '小木椅',
+  tree: '像素盆栽',
+  lamp: '复古台灯',
+  grass: '小游戏机',
 };
 
 export const FURNITURE_ASSET_FILES: Readonly<Record<FurnitureKind, string>> = {

@@ -1,7 +1,7 @@
 {
   "name": "gophers-eden",
   "displayName": "Gopher 乐园",
-  "description": "在 VS Code 里陪你写代码的电子宠物与赛博小家园。",
+  "description": "在 VS Code 里陪你写代码的电子宠物与像素伊甸园。",
   "version": "0.2.0",
   "publisher": "local",
   "engines": {
@@ -17,6 +17,7 @@
     "onCommand:gophersEden.openHabitat",
     "onCommand:gophersEden.openDock",
     "onCommand:gophersEden.renamePet",
+    "onCommand:gophersEden.playWithPet",
     "onCommand:gophersEden.switchTheme",
     "onCommand:gophersEden.toggleEditorPet"
   ],
@@ -71,12 +72,24 @@
         "title": "Gopher 乐园：给宠物起名"
       },
       {
+        "command": "gophersEden.playWithPet",
+        "title": "Gopher 乐园：逗一逗宠物"
+      },
+      {
         "command": "gophersEden.toggleEditorPet",
         "title": "Gopher 乐园：切换代码区宠物显示"
       },
       {
         "command": "gophersEden.switchTheme",
         "title": "Gopher 乐园：切换主题"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "gophersEden.playWithPet",
+        "key": "ctrl+alt+g",
+        "mac": "cmd+alt+g",
+        "when": "editorTextFocus"
       }
     ],
     "configuration": {
