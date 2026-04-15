@@ -3,6 +3,10 @@
   "displayName": "Gopher 乐园",
   "description": "在 VS Code 里陪你写代码的电子宠物与像素伊甸园。",
   "version": "0.2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jiaxiner777/GopherEden.git"
+  },
   "publisher": "local",
   "engines": {
     "vscode": "^1.95.0"
@@ -21,7 +25,7 @@
     "onCommand:gophersEden.switchTheme",
     "onCommand:gophersEden.toggleEditorPet"
   ],
-  "main": "./dist/extension.js",
+  "main": "dist/extension.js",
   "contributes": {
     "viewsContainers": {
       "activitybar": [
@@ -107,11 +111,20 @@
   "scripts": {
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "package": "npm run compile && npx @vscode/vsce package"
+    "package": "npm run compile && node ./node_modules/@vscode/vsce/vsce package --no-dependencies"
   },
   "devDependencies": {
     "@types/node": "^20.16.5",
     "@types/vscode": "^1.95.0",
+    "@vscode/vsce": "^3.8.0",
+    "gifenc": "^1.0.3",
+    "pngjs": "^7.0.0",
     "typescript": "^5.6.2"
-  }
+  },
+  "files": [
+    "dist/**",
+    "media/**",
+    "README.md",
+    "package.json"
+  ]
 }
