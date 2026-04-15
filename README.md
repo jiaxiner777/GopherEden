@@ -1,7 +1,7 @@
 ﻿# Gopher's Eden
 
 <p align="center">
-  <img src="./media/readme-banner.svg" alt="Gopher's Eden README Banner" width="100%" />
+  <img src="./media/readme-banner.gif" alt="Gopher's Eden README Banner" width="100%" />
 </p>
 
 <p align="center">
@@ -11,63 +11,32 @@
   <img alt="Project Save" src="https://img.shields.io/badge/.vscode%2Feden.json-Project%20Save-FFD9B2?style=for-the-badge">
 </p>
 
-> 一个给 VS Code 用的“开发者像素伊甸园”插件。  
+> 一个给 VS Code 用的开发者像素伊甸园插件。
+>
 > 它会在不打扰编码的前提下，让宠物和家具在编辑器边缘、侧边栏和底部乐园里陪你一起工作。
 
 ## 功能亮点
 
 - 轻量代码区宠物投影：优先保证不挡代码，条件合适时才显示在编辑器右侧安全区。
-- 底部 `GOPHER 乐园`：宠物和家具的主要互动舞台，可以拖动、整理、收纳。
+- 底部 GOPHER 乐园：宠物和家具的主要互动舞台，可以拖动、整理、收纳。
 - 项目级存档：状态写入 `.vscode/eden.json`，换个项目就是另一座伊甸园。
 - 资源养成：写代码能获得碎砖与露珠，用来购买家具。
 - 背包 / 商店 / 已摆放管理：支持购买、摆放、收回背包、一键整理。
 - 宠物互动：支持改名、逗玩、状态切换、轻量反馈动画。
-- 多语言资源统计：当前支持 `Go` 和 `Java` 的有效代码行统计。
+- 多语言资源统计：当前支持 Go 和 Java 的有效代码行统计。
 
-## 氛围预览
+## 氛围说明
 
-<table>
-  <tr>
-    <td align="center">
-      <img src="./media/gopher-normal-1.svg" alt="normal pet" width="84" />
-      <br />
-      <strong>Normal</strong>
-      <br />
-      <sub>平静陪伴</sub>
-    </td>
-    <td align="center">
-      <img src="./media/gopher-working-1.svg" alt="working pet" width="84" />
-      <br />
-      <strong>Working</strong>
-      <br />
-      <sub>写代码时更精神</sub>
-    </td>
-    <td align="center">
-      <img src="./media/gopher-alert-1.svg" alt="alert pet" width="84" />
-      <br />
-      <strong>Alert</strong>
-      <br />
-      <sub>报错时会受惊</sub>
-    </td>
-  </tr>
-</table>
-
-<table>
-  <tr>
-    <td align="center"><img src="./media/piano.svg" alt="piano" width="74" /><br /><strong>钢琴</strong></td>
-    <td align="center"><img src="./media/bench.svg" alt="bench" width="74" /><br /><strong>长椅</strong></td>
-    <td align="center"><img src="./media/tree.svg" alt="tree" width="74" /><br /><strong>盆栽</strong></td>
-    <td align="center"><img src="./media/lamp.svg" alt="lamp" width="74" /><br /><strong>台灯</strong></td>
-    <td align="center"><img src="./media/grass.svg" alt="grass" width="74" /><br /><strong>小游戏机</strong></td>
-  </tr>
-</table>
+- 宠物拥有 normal / working / alert 三种基础状态。
+- 底部乐园里的家具当前包含钢琴、长椅、盆栽、台灯和小游戏机。
+- 顶部横幅使用 GitHub 兼容的 GIF 动效，可以直接看到宠物浮动、眨眼和爱心反馈。
 
 ## 当前体验边界
 
 - 编辑器区域是工作区，宠物只是轻量陪伴投影，不做自由拖拽。
 - 真正的拖拽、摆放、收纳、互动，统一放在侧边栏和底部乐园完成。
 - 代码多、长行密集或右侧安全区不足时，代码区宠物允许静默隐藏。
-- 产品优先级始终是：`绝不打扰编码 > 尽量显示宠物`。
+- 产品优先级始终是：绝不打扰编码，再尽量显示宠物。
 
 ## 快速开始
 
@@ -135,21 +104,10 @@ gophers-eden-0.2.0.vsix
 
 ## 已实现的核心模块
 
-- `Sidebar Webview`
-  - 宠物卡
-  - 资源面板
-  - 背包
-  - 商店
-  - 已摆放管理
-- `Bottom Dock Webview`
-  - 宠物主舞台
-  - 家具拖动
-  - 舞台管理
-- `Editor Decoration Layer`
-  - 代码区宠物轻量投影
-  - 家具跟行 / 浮层模式
-- `Project State Store`
-  - `.vscode/eden.json` 项目级存档
+- Sidebar Webview：宠物卡、资源面板、背包、商店、已摆放管理
+- Bottom Dock Webview：宠物主舞台、家具拖动、舞台管理
+- Editor Decoration Layer：代码区宠物轻量投影、家具跟行 / 浮层模式
+- Project State Store：`.vscode/eden.json` 项目级存档
 
 ## 技术栈
 
@@ -183,4 +141,4 @@ npm run package
 
 Gopher's Eden 不是要让宠物占领代码区，而是想让它在不牺牲编辑体验的前提下，给开发者一点轻盈、可爱和秩序感。
 
-如果你也喜欢“边写代码边养小世界”的感觉，欢迎继续把它养大。
+如果你也喜欢边写代码边养小世界的感觉，欢迎继续把它养大。
