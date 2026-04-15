@@ -1,8 +1,8 @@
 {
   "name": "gophers-eden",
   "displayName": "Gopher 乐园",
-  "description": "在 VS Code 里陪你写代码的电子宠物与赛博小家。",
-  "version": "0.0.1",
+  "description": "在 VS Code 里陪你写代码的电子宠物与赛博小家园。",
+  "version": "0.2.0",
   "publisher": "local",
   "engines": {
     "vscode": "^1.95.0"
@@ -14,11 +14,11 @@
     "onStartupFinished",
     "onView:gophersEden.sidebar",
     "onView:gophersEden.dock",
-    "onCommand:gophersEden.renamePet",
-    "onCommand:gophersEden.placePiano",
-    "onCommand:gophersEden.switchTheme",
     "onCommand:gophersEden.openHabitat",
-    "onCommand:gophersEden.openDock"
+    "onCommand:gophersEden.openDock",
+    "onCommand:gophersEden.renamePet",
+    "onCommand:gophersEden.switchTheme",
+    "onCommand:gophersEden.toggleEditorPet"
   ],
   "main": "./dist/extension.js",
   "contributes": {
@@ -33,7 +33,7 @@
       "panel": [
         {
           "id": "gophersEdenPanel",
-          "title": "Gopher 乐园",
+          "title": "Gopher 底部乐园",
           "icon": "media/activity-icon.svg"
         }
       ]
@@ -42,7 +42,7 @@
       "gophersEden": [
         {
           "id": "gophersEden.sidebar",
-          "name": "管理台",
+          "name": "伊甸面板",
           "type": "webview",
           "icon": "media/activity-icon.svg"
         }
@@ -60,7 +60,7 @@
     "commands": [
       {
         "command": "gophersEden.openHabitat",
-        "title": "Gopher 乐园：打开管理台"
+        "title": "Gopher 乐园：打开伊甸面板"
       },
       {
         "command": "gophersEden.openDock",
@@ -71,8 +71,8 @@
         "title": "Gopher 乐园：给宠物起名"
       },
       {
-        "command": "gophersEden.placePiano",
-        "title": "Gopher 乐园：摆放钢琴"
+        "command": "gophersEden.toggleEditorPet",
+        "title": "Gopher 乐园：切换代码区宠物显示"
       },
       {
         "command": "gophersEden.switchTheme",
@@ -86,7 +86,7 @@
           "type": "number",
           "default": 120,
           "minimum": 50,
-          "description": "编辑器宠物悬浮渲染的防抖时长。"
+          "description": "编辑器宠物与家具 decoration 的防抖渲染间隔。"
         }
       }
     }

@@ -1,4 +1,4 @@
-:root {
+﻿:root {
   color-scheme: light;
   --bg: linear-gradient(180deg, #081f1a 0%, #13392f 100%);
   --panel: rgba(7, 21, 17, 0.78);
@@ -9,6 +9,8 @@
   --muted: #98cdbb;
   --accent: #1dffb4;
   --accent-strong: #063225;
+  --danger: #ff8e7a;
+  --danger-text: #43170d;
 }
 
 * {
@@ -23,12 +25,24 @@ body {
   color: var(--text);
 }
 
+button {
+  font: inherit;
+}
+
 .dock-app {
   display: grid;
-  grid-template-rows: auto 1fr;
+  grid-template-rows: auto 1fr auto;
   min-height: 100vh;
   padding: 14px;
   gap: 12px;
+}
+
+.dock-header,
+.dock-panel {
+  border: 1px solid var(--panel-border);
+  border-radius: 18px;
+  background: var(--panel);
+  backdrop-filter: blur(14px);
 }
 
 .dock-header {
@@ -36,10 +50,16 @@ body {
   justify-content: space-between;
   gap: 16px;
   padding: 14px 16px;
-  border: 1px solid var(--panel-border);
-  border-radius: 18px;
-  background: var(--panel);
-  backdrop-filter: blur(14px);
+}
+
+.dock-toolbar {
+  align-items: center;
+  padding: 12px 16px;
+}
+
+.dock-status {
+  display: grid;
+  gap: 4px;
 }
 
 .eyebrow {
@@ -51,12 +71,11 @@ body {
 }
 
 h1,
-p {
+h2,
+p,
+strong,
+small {
   margin: 0;
-}
-
-h1 {
-  font-size: 22px;
 }
 
 .description {
@@ -64,13 +83,21 @@ h1 {
   color: var(--muted);
 }
 
+.description.subtle {
+  margin-top: 0;
+  font-size: 12px;
+}
+
 .header-actions {
   display: flex;
   align-items: flex-start;
+  flex-wrap: wrap;
   gap: 10px;
 }
 
-.toolbar-button {
+.toolbar-button,
+.mini-button,
+.panel-title-row {
   border: 0;
   border-radius: 12px;
   padding: 10px 14px;
@@ -80,9 +107,17 @@ h1 {
   cursor: pointer;
 }
 
-.toolbar-button.secondary {
+.toolbar-button.secondary,
+.mini-button,
+.panel-title-row {
   background: rgba(255, 255, 255, 0.1);
   color: var(--text);
+}
+
+.toolbar-button.danger,
+.mini-button.danger {
+  background: var(--danger);
+  color: var(--danger-text);
 }
 
 .stage {
@@ -94,7 +129,16 @@ h1 {
     radial-gradient(circle at top left, rgba(255, 255, 255, 0.09), transparent 32%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(0, 0, 0, 0.1)),
     var(--panel);
-  min-height: 220px;
+  min-height: 240px;
+}
+
+.sky-band {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 52px;
+  background: linear-gradient(180deg, rgba(29, 255, 180, 0.1), transparent);
 }
 
 .floor {
@@ -131,7 +175,8 @@ h1 {
   cursor: grabbing;
 }
 
-.entity img {
+.entity img,
+.item-icon {
   display: block;
   image-rendering: pixelated;
   filter: drop-shadow(0 10px 14px rgba(0, 0, 0, 0.28));
@@ -143,9 +188,9 @@ h1 {
   height: 54px;
 }
 
-.entity.piano img {
-  width: 64px;
-  height: 64px;
+.entity.furniture img {
+  width: 56px;
+  height: 56px;
 }
 
 .entity-label {
@@ -163,12 +208,96 @@ h1 {
   pointer-events: none;
 }
 
-@media (max-width: 720px) {
+.dock-panel {
+  padding: 14px;
+}
+
+.panel-title-row {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  text-align: left;
+}
+
+.chip {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(29, 255, 180, 0.14);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.chip.muted {
+  color: var(--muted);
+}
+
+.fold-indicator {
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.dock-manage-body {
+  margin-top: 12px;
+}
+
+.empty-state {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--muted);
+}
+
+.dock-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.dock-card {
+  padding: 12px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.dock-card-main {
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  gap: 12px;
+  align-items: center;
+}
+
+.item-icon {
+  width: 40px;
+  height: 40px;
+}
+
+.dock-copy {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.dock-actions {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.is-hidden {
+  display: none;
+}
+
+@media (max-width: 900px) {
   .dock-header {
     flex-direction: column;
   }
 
-  .header-actions {
-    flex-wrap: wrap;
+  .dock-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
