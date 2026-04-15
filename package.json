@@ -1,0 +1,103 @@
+{
+  "name": "gophers-eden",
+  "displayName": "Gopher 乐园",
+  "description": "在 VS Code 里陪你写代码的电子宠物与赛博小家。",
+  "version": "0.0.1",
+  "publisher": "local",
+  "engines": {
+    "vscode": "^1.95.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished",
+    "onView:gophersEden.sidebar",
+    "onView:gophersEden.dock",
+    "onCommand:gophersEden.renamePet",
+    "onCommand:gophersEden.placePiano",
+    "onCommand:gophersEden.switchTheme",
+    "onCommand:gophersEden.openHabitat",
+    "onCommand:gophersEden.openDock"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "gophersEden",
+          "title": "Gopher 乐园",
+          "icon": "media/activity-icon.svg"
+        }
+      ],
+      "panel": [
+        {
+          "id": "gophersEdenPanel",
+          "title": "Gopher 乐园",
+          "icon": "media/activity-icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "gophersEden": [
+        {
+          "id": "gophersEden.sidebar",
+          "name": "管理台",
+          "type": "webview",
+          "icon": "media/activity-icon.svg"
+        }
+      ],
+      "gophersEdenPanel": [
+        {
+          "id": "gophersEden.dock",
+          "name": "底部乐园",
+          "type": "webview",
+          "icon": "media/activity-icon.svg",
+          "visibility": "visible"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "gophersEden.openHabitat",
+        "title": "Gopher 乐园：打开管理台"
+      },
+      {
+        "command": "gophersEden.openDock",
+        "title": "Gopher 乐园：打开底部乐园"
+      },
+      {
+        "command": "gophersEden.renamePet",
+        "title": "Gopher 乐园：给宠物起名"
+      },
+      {
+        "command": "gophersEden.placePiano",
+        "title": "Gopher 乐园：摆放钢琴"
+      },
+      {
+        "command": "gophersEden.switchTheme",
+        "title": "Gopher 乐园：切换主题"
+      }
+    ],
+    "configuration": {
+      "title": "Gopher 乐园",
+      "properties": {
+        "gophersEden.renderDebounceMs": {
+          "type": "number",
+          "default": 120,
+          "minimum": 50,
+          "description": "编辑器宠物悬浮渲染的防抖时长。"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/node": "^20.16.5",
+    "@types/vscode": "^1.95.0",
+    "typescript": "^5.6.2"
+  }
+}
