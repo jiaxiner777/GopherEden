@@ -1,4 +1,4 @@
-﻿# Gopher's Eden
+# Gopher's Eden
 
 <p align="center">
   <img src="./media/readme-banner.gif" alt="Gopher's Eden README Banner" width="100%" />
@@ -24,6 +24,12 @@
 - 背包 / 商店 / 已摆放管理：支持购买、摆放、收回背包、一键整理。
 - 宠物互动：支持改名、逗玩、状态切换、轻量反馈动画。
 - 多语言资源统计：当前支持 Go 和 Java 的有效代码行统计。
+
+## 宠物状态预览
+
+<p align="center">
+  <img src="./media/readme-pet-states.png" alt="Gopher pet states" width="100%" />
+</p>
 
 ## 氛围说明
 
