@@ -1,6 +1,7 @@
-export type EdenTheme = 'cyber-oasis' | 'pixel-meadow';
+﻿export type EdenTheme = 'cyber-oasis' | 'pixel-meadow';
 
 export type PetStatus = 'normal' | 'startled' | 'working';
+export type PetEffectKind = 'heart' | 'sparkle' | 'alert';
 
 export type FurnitureKind = 'piano' | 'bench' | 'tree' | 'lamp' | 'grass';
 
@@ -46,6 +47,7 @@ export interface EdenState {
   readonly totalMeaningfulLinesAdded: number;
   readonly petStatus: PetStatus;
   readonly editorPetEnabled: boolean;
+  readonly editorPetScale: number;
 }
 
 export interface EditorPetUiState {
@@ -59,4 +61,7 @@ export interface EdenViewState {
   readonly state: EdenState;
   readonly editorPet: EditorPetUiState;
   readonly shopItems: readonly ShopItem[];
+  readonly petAnimationFrame: number;
+  readonly petEffect: PetEffectKind | null;
+  readonly petEffectNonce: number;
 }

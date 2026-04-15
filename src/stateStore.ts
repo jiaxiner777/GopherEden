@@ -1,4 +1,4 @@
-﻿import * as vscode from 'vscode';
+import * as vscode from 'vscode';
 
 import { SHOP_ITEMS, getShopItem } from './catalog';
 import {
@@ -29,6 +29,7 @@ const DEFAULT_STATE: EdenState = {
   totalMeaningfulLinesAdded: 0,
   petStatus: 'normal',
   editorPetEnabled: true,
+  editorPetScale: 100,
 };
 
 type LegacyPlacement = {
@@ -84,6 +85,10 @@ export class EdenStateStore {
 
   public async setEditorPetEnabled(editorPetEnabled: boolean): Promise<EdenState> {
     return this.update({ editorPetEnabled });
+  }
+
+  public async setEditorPetScale(editorPetScale: number): Promise<EdenState> {
+    return this.update({ editorPetScale: sanitizeEditorPetScale(editorPetScale) });
   }
 
   public async setPetAnchor(documentUri: string | null, line: number): Promise<EdenState> {
@@ -333,6 +338,7 @@ export class EdenStateStore {
       ),
       petStatus: state?.petStatus ?? DEFAULT_STATE.petStatus,
       editorPetEnabled: state?.editorPetEnabled ?? DEFAULT_STATE.editorPetEnabled,
+      editorPetScale: sanitizeEditorPetScale(state?.editorPetScale ?? DEFAULT_STATE.editorPetScale),
     };
   }
 
@@ -485,6 +491,10 @@ function sanitizePoint(value: Partial<HabitatPoint> | undefined, fallback: Habit
     x: clamp(typeof value?.x === 'number' ? value.x : fallback.x, 0.04, 0.96),
     y: clamp(typeof value?.y === 'number' ? value.y : fallback.y, 0.08, 0.9),
   };
+}
+
+function sanitizeEditorPetScale(value: number): number {
+  return Math.round(clamp(value, 70, 220) / 10) * 10;
 }
 
 function clamp(value: number, min: number, max: number): number {

@@ -1,6 +1,8 @@
 ﻿(function () {
   const vscode = acquireVsCodeApi();
   const body = document.body;
+  const assetNode = document.getElementById('eden-assets');
+  const edenAssets = assetNode ? JSON.parse(assetNode.textContent || '{}') : {};
   const stage = document.getElementById('stage');
   const entities = document.getElementById('entities');
   const toggleButton = document.getElementById('dock-editor-pet-toggle');
@@ -12,10 +14,16 @@
   const dockManageBody = document.getElementById('dock-manage-body');
   const dockFoldIndicator = document.getElementById('dock-fold-indicator');
 
-  const petImages = {
-    normal: body.dataset.petNormal,
-    startled: body.dataset.petAlert,
-    working: body.dataset.petWorking,
+  const petFrames = {
+    normal: [edenAssets.petMarkup?.normal1 || '', edenAssets.petMarkup?.normal2 || ''],
+    startled: [edenAssets.petMarkup?.alert1 || '', edenAssets.petMarkup?.alert2 || ''],
+    working: [edenAssets.petMarkup?.working1 || '', edenAssets.petMarkup?.working2 || ''],
+  };
+
+  const effectMarkup = {
+    heart: edenAssets.effectMarkup?.heart || '',
+    sparkle: edenAssets.effectMarkup?.sparkle || '',
+    alert: edenAssets.effectMarkup?.alert || '',
   };
 
   const furnitureImages = {
@@ -27,16 +35,17 @@
   };
 
   const labelCopy = {
-    piano: '\u94a2\u7434',
-    bench: '\u957f\u6905',
-    tree: '\u5c0f\u6811',
-    lamp: '\u5c0f\u706f',
-    grass: '\u8349\u5806',
+    piano: '像素钢琴',
+    bench: '小木椅',
+    tree: '像素盆栽',
+    lamp: '复古台灯',
+    grass: '小游戏机',
   };
 
   let latestViewState = null;
   let dragSession = null;
   let manageOpen = false;
+  let lastEffectNonce = 0;
 
   document.addEventListener('click', (event) => {
     const target = event.target;
@@ -137,20 +146,29 @@
     }
 
     const pet = document.createElement('div');
-    pet.className = 'entity pet';
+    pet.className = `entity pet pet-status-${state.petStatus}`;
     pet.dataset.entity = 'pet';
     pet.dataset.id = 'pet';
     applyPosition(pet, state.petDockPosition);
 
-    const petImage = document.createElement('img');
-    petImage.alt = state.petName;
-    petImage.src = petImages[state.petStatus] || petImages.normal;
+    const petImage = document.createElement('div');
+    petImage.className = 'pet-sprite';
+    petImage.setAttribute('role', 'img');
+    petImage.setAttribute('aria-label', state.petName);
+    const frames = petFrames[state.petStatus] || petFrames.normal;
+    petImage.innerHTML = frames[latestViewState.petAnimationFrame % frames.length] || frames[0] || '';
     pet.appendChild(petImage);
 
     const petLabel = document.createElement('div');
     petLabel.className = 'entity-label';
     petLabel.textContent = state.petName;
     pet.appendChild(petLabel);
+
+    if (latestViewState.petEffect && latestViewState.petEffectNonce !== lastEffectNonce) {
+      lastEffectNonce = latestViewState.petEffectNonce;
+      decoratePetReaction(pet, latestViewState.petEffect);
+    }
+
     entities.appendChild(pet);
 
     dockPlacements.forEach((placement) => {
@@ -167,7 +185,7 @@
       entities.appendChild(furniture);
     });
 
-    dockSummary.textContent = `${dockPlacements.length} \u4e2a\u6446\u4ef6`;
+    dockSummary.textContent = `${dockPlacements.length} 个摆件`;
     dockEmpty.classList.toggle('is-hidden', dockPlacements.length > 0);
     dockList.innerHTML = dockPlacements.map((placement) => `
       <article class="dock-card">
@@ -175,19 +193,36 @@
           <img src="${furnitureImages[placement.kind]}" alt="${labelCopy[placement.kind]}" class="item-icon" />
           <div>
             <strong>${labelCopy[placement.kind]}</strong>
-            <p class="dock-copy">\u8fd9\u91cc\u53ef\u4ee5\u76f4\u63a5\u62d6\u52a8\u4f4d\u7f6e\uff1b\u4e5f\u53ef\u4ee5\u5207\u56de\u4ee3\u7801\u533a\u6295\u5f71\u6a21\u5f0f\u3002</p>
+            <p class="dock-copy">这里可以直接拖动位置，也可以切回代码区的跟行或浮层投影。</p>
           </div>
         </div>
         <div class="dock-actions">
-          <button class="mini-button" type="button" data-placement-id="${placement.id}" data-placement-action="to-line-bind">\u6539\u4e3a\u8ddf\u884c</button>
-          <button class="mini-button" type="button" data-placement-id="${placement.id}" data-placement-action="to-viewport-float">\u6539\u4e3a\u6d6e\u5c42</button>
-          <button class="mini-button" type="button" data-placement-id="${placement.id}" data-placement-action="return">\u6536\u56de\u80cc\u5305</button>
-          <button class="mini-button danger" type="button" data-placement-id="${placement.id}" data-placement-action="delete">\u5220\u9664</button>
+          <button class="mini-button" type="button" data-placement-id="${placement.id}" data-placement-action="to-line-bind">改为跟行</button>
+          <button class="mini-button" type="button" data-placement-id="${placement.id}" data-placement-action="to-viewport-float">改为浮层</button>
+          <button class="mini-button" type="button" data-placement-id="${placement.id}" data-placement-action="return">收回背包</button>
+          <button class="mini-button danger" type="button" data-placement-id="${placement.id}" data-placement-action="delete">删除</button>
         </div>
       </article>
     `).join('');
 
     renderManageState();
+  }
+
+  function decoratePetReaction(host, effect) {
+    host.classList.remove('is-heart', 'is-sparkle', 'is-alert-react');
+    host.querySelectorAll('.pet-effect').forEach((node) => node.remove());
+    void host.offsetWidth;
+    host.classList.add(effect === 'heart' ? 'is-heart' : effect === 'sparkle' ? 'is-sparkle' : 'is-alert-react');
+
+    const bubble = document.createElement('div');
+    bubble.className = `pet-effect effect-${effect}`;
+    bubble.innerHTML = effectMarkup[effect] || '';
+    host.appendChild(bubble);
+
+    window.setTimeout(() => {
+      bubble.remove();
+      host.classList.remove('is-heart', 'is-sparkle', 'is-alert-react');
+    }, 1400);
   }
 
   function renderManageState() {
@@ -196,7 +231,7 @@
     }
 
     dockManageBody.classList.toggle('is-hidden', !manageOpen);
-    dockFoldIndicator.textContent = manageOpen ? '\u6536\u8d77' : '\u5c55\u5f00';
+    dockFoldIndicator.textContent = manageOpen ? '收起' : '展开';
   }
 
   function applyPosition(element, point) {
@@ -207,7 +242,7 @@
   function updateEntityPosition(element, event) {
     const rect = stage.getBoundingClientRect();
     const x = clamp((event.clientX - rect.left) / rect.width, 0.06, 0.96);
-    const y = clamp((event.clientY - rect.top) / rect.height, 0.16, 0.86);
+    const y = clamp((event.clientY - rect.top) / rect.height, 0.2, 0.88);
     applyPosition(element, { x, y });
   }
 
@@ -224,7 +259,7 @@
 
     entity.classList.remove('dragging');
     const x = clamp(parseFloat(entity.style.left) / 100, 0.06, 0.96);
-    const y = clamp(parseFloat(entity.style.top) / 100, 0.16, 0.86);
+    const y = clamp(parseFloat(entity.style.top) / 100, 0.2, 0.88);
 
     if (dragSession.type === 'pet') {
       vscode.postMessage({ type: 'movePet', x, y });
