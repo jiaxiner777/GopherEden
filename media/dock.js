@@ -1,4 +1,4 @@
-﻿(function () {
+(function () {
   const vscode = acquireVsCodeApi();
   const body = document.body;
   const assetNode = document.getElementById('eden-assets');
@@ -13,6 +13,8 @@
   const dockManageToggle = document.getElementById('dock-manage-toggle');
   const dockManageBody = document.getElementById('dock-manage-body');
   const dockFoldIndicator = document.getElementById('dock-fold-indicator');
+  const dockLineageChip = document.getElementById('dock-lineage-chip');
+  const dockStageChip = document.getElementById('dock-stage-chip');
 
   const petFrames = {
     normal: [edenAssets.petMarkup?.normal1 || '', edenAssets.petMarkup?.normal2 || ''],
@@ -54,7 +56,7 @@
     }
 
     const actionHost = target.closest('[data-action]');
-    if (actionHost instanceof HTMLElement) {
+    if (actionHost instanceof HTMLElement && actionHost.dataset.action) {
       vscode.postMessage({ type: actionHost.dataset.action });
       return;
     }
@@ -133,8 +135,11 @@
     const state = latestViewState.state;
     const editorPet = latestViewState.editorPet;
     const dockPlacements = (state.placedFurniture || []).filter((placement) => placement.anchorType === 'dock');
+    const visual = latestViewState.petVisual;
 
     entities.innerHTML = '';
+    body.dataset.lineage = visual.lineage;
+    body.dataset.stage = visual.stageId;
 
     if (toggleButton) {
       toggleButton.textContent = editorPet.toggleLabel;
@@ -144,11 +149,23 @@
     if (editorPetSummary) {
       editorPetSummary.textContent = editorPet.statusText;
     }
+    if (dockLineageChip) {
+      dockLineageChip.textContent = visual.lineageLabel;
+    }
+    if (dockStageChip) {
+      dockStageChip.textContent = visual.stageLabel;
+    }
 
     const pet = document.createElement('div');
-    pet.className = `entity pet pet-status-${state.petStatus}`;
+    pet.className = `entity pet pet-status-${state.petStatus} lineage-${visual.lineage} stage-${visual.stageId}`;
     pet.dataset.entity = 'pet';
     pet.dataset.id = 'pet';
+    pet.style.setProperty('--pet-scale', String(visual.dockScale));
+    pet.style.setProperty('--pet-filter', visual.dockFilter);
+    pet.style.setProperty('--pet-accent', visual.accentColor);
+    pet.style.setProperty('--idle-duration', `${visual.idleMotionMs}ms`);
+    pet.style.setProperty('--working-duration', `${visual.workingMotionMs}ms`);
+    pet.style.setProperty('--alert-duration', `${visual.alertMotionMs}ms`);
     applyPosition(pet, state.petDockPosition);
 
     const petImage = document.createElement('div');
@@ -161,7 +178,7 @@
 
     const petLabel = document.createElement('div');
     petLabel.className = 'entity-label';
-    petLabel.textContent = state.petName;
+    petLabel.textContent = `${state.petName} · ${visual.stageLabel}`;
     pet.appendChild(petLabel);
 
     if (latestViewState.petEffect && latestViewState.petEffectNonce !== lastEffectNonce) {
@@ -185,25 +202,29 @@
       entities.appendChild(furniture);
     });
 
-    dockSummary.textContent = `${dockPlacements.length} 个摆件`;
-    dockEmpty.classList.toggle('is-hidden', dockPlacements.length > 0);
-    dockList.innerHTML = dockPlacements.map((placement) => `
-      <article class="dock-card">
-        <div class="dock-card-main">
-          <img src="${furnitureImages[placement.kind]}" alt="${labelCopy[placement.kind]}" class="item-icon" />
-          <div>
-            <strong>${labelCopy[placement.kind]}</strong>
-            <p class="dock-copy">这里可以直接拖动位置，也可以切回代码区的跟行或浮层投影。</p>
+    if (dockSummary) {
+      dockSummary.textContent = `${dockPlacements.length} 个摆件`;
+    }
+    dockEmpty?.classList.toggle('is-hidden', dockPlacements.length > 0);
+    if (dockList) {
+      dockList.innerHTML = dockPlacements.map((placement) => `
+        <article class="dock-card">
+          <div class="dock-card-main">
+            <img src="${furnitureImages[placement.kind]}" alt="${labelCopy[placement.kind]}" class="item-icon" />
+            <div>
+              <strong>${labelCopy[placement.kind]}</strong>
+              <p class="dock-copy">这里可以直接拖动位置，也可以切回代码区的跟行或浮层投影。</p>
+            </div>
           </div>
-        </div>
-        <div class="dock-actions">
-          <button class="mini-button" type="button" data-placement-id="${placement.id}" data-placement-action="to-line-bind">改为跟行</button>
-          <button class="mini-button" type="button" data-placement-id="${placement.id}" data-placement-action="to-viewport-float">改为浮层</button>
-          <button class="mini-button" type="button" data-placement-id="${placement.id}" data-placement-action="return">收回背包</button>
-          <button class="mini-button danger" type="button" data-placement-id="${placement.id}" data-placement-action="delete">删除</button>
-        </div>
-      </article>
-    `).join('');
+          <div class="dock-actions">
+            <button class="mini-button" type="button" data-placement-id="${placement.id}" data-placement-action="to-line-bind">改为跟行</button>
+            <button class="mini-button" type="button" data-placement-id="${placement.id}" data-placement-action="to-viewport-float">改为浮层</button>
+            <button class="mini-button" type="button" data-placement-id="${placement.id}" data-placement-action="return">收回背包</button>
+            <button class="mini-button danger" type="button" data-placement-id="${placement.id}" data-placement-action="delete">删除</button>
+          </div>
+        </article>
+      `).join('');
+    }
 
     renderManageState();
   }

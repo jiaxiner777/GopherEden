@@ -1,8 +1,8 @@
 {
   "name": "gophers-eden",
   "displayName": "Gopher 乐园",
-  "description": "在 VS Code 里陪你写代码的电子宠物与像素伊甸园。",
-  "version": "0.2.0",
+  "description": "在 VS Code 里陪你写代码的像素宠物与开发者伊甸园。",
+  "version": "0.5.0",
   "repository": {
     "type": "git",
     "url": "https://github.com/jiaxiner777/GopherEden.git"
@@ -22,6 +22,7 @@
     "onCommand:gophersEden.openDock",
     "onCommand:gophersEden.renamePet",
     "onCommand:gophersEden.playWithPet",
+    "onCommand:gophersEden.redetectLineage",
     "onCommand:gophersEden.switchTheme",
     "onCommand:gophersEden.toggleEditorPet"
   ],
@@ -78,6 +79,10 @@
       {
         "command": "gophersEden.playWithPet",
         "title": "Gopher 乐园：逗一逗宠物"
+      },
+      {
+        "command": "gophersEden.redetectLineage",
+        "title": "Gopher 乐园：重新判断宠物种族"
       },
       {
         "command": "gophersEden.toggleEditorPet",

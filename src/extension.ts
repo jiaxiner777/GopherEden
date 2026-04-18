@@ -1,9 +1,17 @@
-import * as vscode from 'vscode';
+﻿import * as vscode from 'vscode';
 
 import { SHOP_ITEMS } from './catalog';
 import { debounce } from './debounce';
 import { DockMessage, EdenDockProvider } from './dockProvider';
 import { getFurnitureAssetFile, getFurnitureLabel } from './furniture';
+import {
+  getGrowthStage,
+  PET_LINEAGES,
+  PET_LINEAGE_ORDER,
+  scoreLineageDetection,
+  getLineageDefinition,
+  getMotionProfile,
+} from './petConfig';
 import { EdenSidebarProvider, SidebarMessage } from './sidebarProvider';
 import { EdenStateStore } from './stateStore';
 import {
@@ -12,14 +20,18 @@ import {
   EditorPetUiState,
   FurnitureAnchorType,
   FurnitureKind,
+  GrowthUiState,
   PetEffectKind,
+  PetLineage,
   PetStatus,
+  PetVisualUiState,
   PlacedFurniture,
 } from './types';
 
 type PetMood = 'normal' | 'alert' | 'working';
 type PetRenderMode = 'floating' | 'dock-edge';
 type PetRenderReason = 'visible' | 'disabled' | 'no-editor' | 'layout';
+type PetAffinityReason = 'error' | 'save' | 'placement' | 'interaction';
 
 interface ActivityWindowEntry {
   readonly at: number;
@@ -69,7 +81,7 @@ const FURNITURE_MAX_LINE_LENGTH = 142;
 const FURNITURE_BASE_OFFSET_X = 88;
 const FURNITURE_FLOAT_OFFSET_X = 98;
 const FURNITURE_OPACITY = '0.74';
-const PET_ANIMATION_INTERVAL_MS = 650;
+const PET_ANIMATION_INTERVAL_MS = 320;
 
 const FURNITURE_ICON_SIZES: Readonly<Record<FurnitureKind, number>> = {
   piano: 30,
@@ -86,12 +98,14 @@ class EdenController implements vscode.Disposable {
   private readonly sidebarProvider: EdenSidebarProvider;
   private readonly dockProvider: EdenDockProvider;
   private petDecorations: Record<PetMood, readonly vscode.TextEditorDecorationType[]>;
+  private currentPetDecorationSignature = '';
   private readonly furnitureDecorations: Record<FurnitureKind, vscode.TextEditorDecorationType>;
   private readonly statusBarItem: vscode.StatusBarItem;
 
   private workingAnimationTimer: NodeJS.Timeout | undefined;
   private petAnimationTimer: NodeJS.Timeout | undefined;
   private petEffectTimer: NodeJS.Timeout | undefined;
+  private petFollowupEffectTimer: NodeJS.Timeout | undefined;
   private petAnimationTick = 0;
   private petEffect: PetEffectKind | null = null;
   private petEffectNonce = 0;
@@ -136,7 +150,7 @@ class EdenController implements vscode.Disposable {
 
   public async initialize(): Promise<void> {
     await this.stateStore.initialize();
-    this.rebuildPetDecorations(this.stateStore.getState().editorPetScale);
+    this.rebuildPetDecorationsForState();
 
     this.disposables.push(this.registerSidebar());
     this.disposables.push(this.registerDock());
@@ -151,6 +165,10 @@ class EdenController implements vscode.Disposable {
         activeEditor.document.uri.toString(),
         activeEditor.selection.active.line,
       );
+    }
+
+    if (!this.stateStore.getState().petLineageSettled) {
+      await this.redetectPetLineage(false);
     }
 
     await this.refreshErrorState();
@@ -171,6 +189,11 @@ class EdenController implements vscode.Disposable {
     if (this.petEffectTimer) {
       clearTimeout(this.petEffectTimer);
       this.petEffectTimer = undefined;
+    }
+
+    if (this.petFollowupEffectTimer) {
+      clearTimeout(this.petFollowupEffectTimer);
+      this.petFollowupEffectTimer = undefined;
     }
 
     for (const decoration of Object.values(this.petDecorations).flat()) {
@@ -236,6 +259,9 @@ class EdenController implements vscode.Disposable {
       vscode.commands.registerCommand('gophersEden.playWithPet', async () => {
         await this.playWithPet();
       }),
+      vscode.commands.registerCommand('gophersEden.redetectLineage', async () => {
+        await this.redetectPetLineage(true);
+      }),
       vscode.commands.registerCommand('gophersEden.switchTheme', async (theme?: string) => {
         if (theme === 'cyber-oasis' || theme === 'pixel-meadow') {
           await this.stateStore.setTheme(theme);
@@ -252,6 +278,9 @@ class EdenController implements vscode.Disposable {
     return vscode.Disposable.from(
       vscode.workspace.onDidChangeTextDocument((event) => {
         void this.handleTextDocumentChange(event);
+      }),
+      vscode.workspace.onDidSaveTextDocument((document) => {
+        void this.handleDocumentSave(document);
       }),
       vscode.window.onDidChangeTextEditorSelection((event) => {
         void this.handleSelectionChange(event);
@@ -291,6 +320,12 @@ class EdenController implements vscode.Disposable {
         return;
       case 'setEditorPetScale':
         await this.setEditorPetScale(message.scale);
+        return;
+      case 'setLineage':
+        await this.setPetLineageManually(message.lineage);
+        return;
+      case 'redetectLineage':
+        await this.redetectPetLineage(true);
         return;
       case 'returnAllPlacements':
         await this.returnAllPlacementsToInventory();
@@ -363,11 +398,10 @@ class EdenController implements vscode.Disposable {
   private async renamePet(): Promise<void> {
     const currentName = this.stateStore.getState().petName;
     const nextName = await vscode.window.showInputBox({
-      title: '\u7ed9\u5ba0\u7269\u8d77\u540d',
-      prompt: '\u8f93\u5165\u4e00\u4e2a\u4f60\u559c\u6b22\u7684\u540d\u5b57\uff0c\u5b83\u4f1a\u663e\u793a\u5728\u4fa7\u8fb9\u680f\u548c\u5e95\u90e8\u4e50\u56ed\u91cc\u3002',
+      title: '给宠物起名',
+      prompt: '输入一个你喜欢的名字，它会显示在侧边栏和底部乐园里。',
       value: currentName,
-      validateInput: (value) =>
-        value.trim().length === 0 ? '\u540d\u5b57\u4e0d\u80fd\u4e3a\u7a7a\u3002' : undefined,
+      validateInput: (value) => value.trim().length === 0 ? '名字不能为空。' : undefined,
     });
 
     if (!nextName) {
@@ -379,10 +413,21 @@ class EdenController implements vscode.Disposable {
   }
 
   private async playWithPet(): Promise<void> {
-    const petName = this.stateStore.getState().petName;
-    this.showPetEffect('heart');
-    void vscode.window.setStatusBarMessage(`${petName} 开心地晃了晃。`, 2200);
-    await this.refreshStateDisplay();
+    const state = this.stateStore.getState();
+    const stage = getGrowthStage(state.growthPoints);
+    const lineage = getLineageDefinition(state.petLineage);
+    await this.stateStore.addGrowthPoints(stage.growthProfile.interactionGain);
+    this.showPetEffect('heart', stage.id === 'stage-c' ? 1700 : 1400);
+    if (stage.id !== 'stage-a') {
+      this.scheduleFollowupEffect('sparkle', stage.id === 'stage-c' ? 260 : 420);
+      await this.settlePetByFurnitureAffinity('interaction');
+    }
+
+    void vscode.window.setStatusBarMessage(
+      `${state.petName}${buildInteractionMessage(lineage.id, stage.id)}，成长值 +${stage.growthProfile.interactionGain}。`,
+      2400,
+    );
+    await this.renderAndSync();
   }
 
   private async toggleEditorPet(): Promise<void> {
@@ -400,17 +445,22 @@ class EdenController implements vscode.Disposable {
     }
 
     await this.stateStore.setEditorPetScale(nextScale);
-    this.rebuildPetDecorations(nextScale);
+    this.rebuildPetDecorationsForState();
     await this.renderAndSync();
   }
 
   private async buyItem(kind: FurnitureKind): Promise<void> {
     try {
+      const stage = getGrowthStage(this.stateStore.getState().growthPoints);
       await this.stateStore.purchaseItem(kind);
+      await this.stateStore.addGrowthPoints(stage.growthProfile.purchaseGain);
       const item = SHOP_ITEMS.find((entry) => entry.kind === kind);
       if (item) {
         this.showPetEffect('sparkle');
-        void vscode.window.setStatusBarMessage(`已购买 ${item.name}，已放入背包。`, 2600);
+        void vscode.window.setStatusBarMessage(
+          `已购买 ${item.name}，已经放进背包，成长值 +${stage.growthProfile.purchaseGain}。`,
+          2600,
+        );
       }
       await this.renderAndSync();
     } catch (error) {
@@ -418,13 +468,13 @@ class EdenController implements vscode.Disposable {
     }
   }
 
-  private async placeFurniture(
-    kind: FurnitureKind,
-    anchorType: FurnitureAnchorType,
-  ): Promise<void> {
+  private async placeFurniture(kind: FurnitureKind, anchorType: FurnitureAnchorType): Promise<void> {
     try {
+      const stage = getGrowthStage(this.stateStore.getState().growthPoints);
       if (anchorType === 'dock') {
         await this.stateStore.placeFurnitureInDock(kind);
+        await this.stateStore.addGrowthPoints(stage.growthProfile.placementGain);
+        await this.settlePetByFurnitureAffinity('placement', [kind]);
         await this.renderAndSync();
         await this.openDock();
         return;
@@ -432,7 +482,7 @@ class EdenController implements vscode.Disposable {
 
       const editor = this.getPlaceableEditor();
       if (!editor) {
-        await vscode.window.showWarningMessage('\u8bf7\u5148\u6253\u5f00\u4e00\u4e2a\u672c\u5730\u6587\u4ef6\uff0c\u518d\u628a\u5bb6\u5177\u6446\u5230\u4ee3\u7801\u533a\u3002');
+        await vscode.window.showWarningMessage('请先打开一个本地文件，再把家具摆到代码区。');
         return;
       }
 
@@ -443,6 +493,8 @@ class EdenController implements vscode.Disposable {
         editor.selection.active.line,
       );
       await this.stateStore.setPetAnchor(editor.document.uri.toString(), editor.selection.active.line);
+      await this.stateStore.addGrowthPoints(stage.growthProfile.placementGain);
+      await this.settlePetByFurnitureAffinity('placement', [kind]);
       await this.renderAndSync();
     } catch (error) {
       await vscode.window.showWarningMessage(toErrorMessage(error));
@@ -470,7 +522,7 @@ class EdenController implements vscode.Disposable {
         case 'to-line-bind': {
           const context = this.resolvePlacementEditorContext(placement);
           if (!context) {
-            await vscode.window.showWarningMessage('\u6ca1\u6709\u53ef\u7528\u7684\u6587\u4ef6\u7f16\u8f91\u5668\uff0c\u65e0\u6cd5\u5207\u56de\u8ddf\u884c\u6a21\u5f0f\u3002');
+            await vscode.window.showWarningMessage('没有可用的文件编辑器，无法切回跟行模式。');
             return;
           }
 
@@ -480,7 +532,7 @@ class EdenController implements vscode.Disposable {
         case 'to-viewport-float': {
           const context = this.resolvePlacementEditorContext(placement);
           if (!context) {
-            await vscode.window.showWarningMessage('\u6ca1\u6709\u53ef\u7528\u7684\u6587\u4ef6\u7f16\u8f91\u5668\uff0c\u65e0\u6cd5\u5207\u56de\u6d6e\u5c42\u6a21\u5f0f\u3002');
+            await vscode.window.showWarningMessage('没有可用的文件编辑器，无法切回浮层模式。');
             return;
           }
 
@@ -520,13 +572,13 @@ class EdenController implements vscode.Disposable {
   private async returnAllPlacementsToInventory(): Promise<void> {
     const placedCount = this.stateStore.getState().placedFurniture.length;
     if (placedCount === 0) {
-      void vscode.window.setStatusBarMessage('\u5f53\u524d\u6ca1\u6709\u5df2\u6446\u653e\u5bb6\u5177\u9700\u8981\u6536\u56de\u3002', 2200);
+      void vscode.window.setStatusBarMessage('当前没有已摆放家具需要收回。', 2200);
       return;
     }
 
     await this.stateStore.returnAllPlacementsToInventory();
     await this.renderAndSync();
-    void vscode.window.setStatusBarMessage(`\u5df2\u5c06 ${placedCount} \u4e2a\u6446\u4ef6\u5168\u90e8\u6536\u56de\u80cc\u5305\u3002`, 2800);
+    void vscode.window.setStatusBarMessage(`已将 ${placedCount} 个摆件全部收回背包。`, 2600);
   }
 
   private resolvePlacementEditorContext(
@@ -598,6 +650,8 @@ class EdenController implements vscode.Disposable {
 
     if (addedMeaningfulLines > 0) {
       await this.awardBricks(addedMeaningfulLines);
+      const stage = getGrowthStage(this.stateStore.getState().growthPoints);
+      await this.stateStore.addGrowthPoints(Math.min(stage.growthProfile.codeGainCap, addedMeaningfulLines));
       this.trackWorkingBurst(addedMeaningfulLines);
     }
 
@@ -642,6 +696,23 @@ class EdenController implements vscode.Disposable {
     this.renderDebounced();
   }
 
+  private async handleDocumentSave(document: vscode.TextDocument): Promise<void> {
+    if (document.uri.scheme !== 'file' || this.isStateFileUri(document.uri)) {
+      return;
+    }
+
+    if (!(await isResourceTrackedDocument(document))) {
+      return;
+    }
+
+    await this.refreshErrorState();
+    if (this.hasErrors) {
+      return;
+    }
+
+    await this.celebratePetSuccess();
+  }
+
   private async awardBricks(addedMeaningfulLines: number): Promise<void> {
     const state = this.stateStore.getState();
     const previousBricks = state.totalBricks;
@@ -660,11 +731,13 @@ class EdenController implements vscode.Disposable {
   private trackWorkingBurst(addedMeaningfulLines: number): void {
     const now = Date.now();
     this.activityWindow = this.activityWindow
-      .filter((entry) => now - entry.at <= 2000)
+      .filter((entry) => now - entry.at <= 2200)
       .concat({ at: now, addedLines: addedMeaningfulLines });
 
     const totalRecentLines = this.activityWindow.reduce((sum, entry) => sum + entry.addedLines, 0);
-    if (totalRecentLines < 20) {
+    const lineage = getLineageDefinition(this.stateStore.getState().petLineage);
+    const threshold = lineage.id === 'concurrency' ? 16 : 20;
+    if (totalRecentLines < threshold) {
       return;
     }
 
@@ -676,7 +749,7 @@ class EdenController implements vscode.Disposable {
     this.workingAnimationTimer = setTimeout(() => {
       this.workingAnimationTimer = undefined;
       void this.refreshComputedStatus();
-    }, 6000);
+    }, lineage.id === 'concurrency' ? 6800 : 6200);
   }
 
   private async refreshErrorState(): Promise<void> {
@@ -690,8 +763,10 @@ class EdenController implements vscode.Disposable {
     const hadErrors = this.hasErrors;
     this.hasErrors = errorCount > 0;
     if (!hadErrors && this.hasErrors) {
-      this.showPetEffect('alert');
+      this.showPetEffect('alert', 1800);
+      await this.escapePetFromErrors();
     }
+
     await this.refreshComputedStatus();
   }
 
@@ -719,12 +794,300 @@ class EdenController implements vscode.Disposable {
     await this.renderAndSync();
   }
 
+  private async setPetLineageManually(lineage: PetLineage): Promise<void> {
+    const previous = this.stateStore.getState();
+    await this.stateStore.setPetLineage(lineage, 'manual', true);
+    await this.renderAndSync();
+
+    const definition = getLineageDefinition(lineage);
+    const prefix = previous.petLineage === lineage && previous.petLineageSource === 'manual'
+      ? '当前项目宠物种族已保持为'
+      : '已将当前项目宠物种族切换为';
+    void vscode.window.showInformationMessage(
+      `${prefix} ${definition.displayName}。后续不会被自动覆盖，除非你主动重新自动判定。`,
+    );
+  }
+
+  private async redetectPetLineage(showNotice: boolean): Promise<void> {
+    const nextLineage = await this.detectProjectLineage();
+    const previous = this.stateStore.getState().petLineage;
+    await this.stateStore.setPetLineage(nextLineage, 'auto', true);
+    await this.renderAndSync();
+
+    if (!showNotice) {
+      return;
+    }
+
+    const definition = getLineageDefinition(nextLineage);
+    const prefix = previous === nextLineage ? '已重新确认' : '已重新自动判定';
+    void vscode.window.showInformationMessage(`${prefix}当前项目宠物种族：${definition.displayName}`);
+  }
+
+  private async detectProjectLineage(): Promise<PetLineage> {
+    const scores: Record<PetLineage, number> = {
+      primitives: 0,
+      concurrency: 0,
+      protocols: 0,
+      chaos: 0,
+    };
+    const sampled = new Set<string>();
+
+    const activeEditor = this.getPlaceableEditor();
+    if (activeEditor && await isResourceTrackedDocument(activeEditor.document)) {
+      await this.scoreDocumentForLineage(activeEditor.document, scores, 1.35);
+      sampled.add(activeEditor.document.uri.toString());
+    }
+
+    for (const folder of vscode.workspace.workspaceFolders ?? []) {
+      const uris = await vscode.workspace.findFiles(
+        new vscode.RelativePattern(folder, '**/*'),
+        '**/{node_modules,dist,out,build,.git,.idea,.vscode}/**',
+        180,
+      );
+
+      let used = 0;
+      for (const uri of uris) {
+        if (used >= 60 || sampled.has(uri.toString())) {
+          continue;
+        }
+
+        sampled.add(uri.toString());
+        try {
+          const document = await vscode.workspace.openTextDocument(uri);
+          if (!(await isResourceTrackedDocument(document))) {
+            continue;
+          }
+
+          await this.scoreDocumentForLineage(document, scores, 1);
+          used += 1;
+        } catch {
+          // Ignore unreadable files and keep detection lightweight.
+        }
+      }
+    }
+
+    let winner: PetLineage = 'primitives';
+    let bestScore = Number.NEGATIVE_INFINITY;
+    for (const lineage of PET_LINEAGE_ORDER) {
+      const score = scores[lineage];
+      if (score > bestScore + 0.001) {
+        bestScore = score;
+        winner = lineage;
+      }
+    }
+
+    return winner;
+  }
+
+  private async scoreDocumentForLineage(
+    document: vscode.TextDocument,
+    scores: Record<PetLineage, number>,
+    weight: number,
+  ): Promise<void> {
+    const text = document.getText().slice(0, 12000).toLowerCase();
+    const errorCount = vscode.languages
+      .getDiagnostics(document.uri)
+      .filter((diagnostic) => diagnostic.severity === vscode.DiagnosticSeverity.Error)
+      .length;
+    const nestingCount = text.match(/\b(if|for|switch|try|catch)\b/g)?.length ?? 0;
+
+    for (const lineage of PET_LINEAGES) {
+      scores[lineage.id] += scoreLineageDetection(lineage, {
+        languageId: document.languageId.toLowerCase(),
+        text,
+        lineCount: document.lineCount,
+        nestingCount,
+        errorCount,
+      }) * weight;
+    }
+  }
+
+  private async celebratePetSuccess(): Promise<void> {
+    const state = this.stateStore.getState();
+    const stage = getGrowthStage(state.growthPoints);
+    const lineage = getLineageDefinition(state.petLineage);
+    await this.stateStore.recordSuccessfulSave(stage.growthProfile.saveGrowthGain);
+
+    let rewardText = '';
+    if (stage.growthProfile.supportsCelebrationReward && stage.growthProfile.saveRewardBricks > 0) {
+      const latest = this.stateStore.getState();
+      await this.stateStore.update({ totalBricks: latest.totalBricks + stage.growthProfile.saveRewardBricks });
+      rewardText = `，碎砖 +${stage.growthProfile.saveRewardBricks}`;
+    }
+
+    let stabilityText = '';
+    const latest = this.stateStore.getState();
+    if (latest.successfulSaveCount > 0 && latest.successfulSaveCount % 5 === 0) {
+      await this.stateStore.addGrowthPoints(stage.growthProfile.stableDevelopmentBonusGain);
+      stabilityText = `，稳定开发奖励成长值 +${stage.growthProfile.stableDevelopmentBonusGain}`;
+    }
+
+    if (stage.id === 'stage-a') {
+      this.showPetEffect('heart', 1200);
+    } else {
+      this.showPetEffect('sparkle', stage.id === 'stage-c' ? 1800 : 1500);
+      if (stage.id === 'stage-c') {
+        this.scheduleFollowupEffect('heart', 260);
+      }
+      await this.settlePetByFurnitureAffinity('save');
+    }
+
+    void vscode.window.setStatusBarMessage(
+      `${buildSaveMessage(lineage.id, stage.id)}，成长值 +${stage.growthProfile.saveGrowthGain}${rewardText}${stabilityText}。`,
+      2800,
+    );
+    await this.refreshComputedStatus();
+  }
+
+  private async escapePetFromErrors(): Promise<void> {
+    const state = this.stateStore.getState();
+    const stage = getGrowthStage(state.growthPoints);
+    const lineage = getLineageDefinition(state.petLineage);
+
+    if (!stage.growthProfile.supportsEscapeSearch) {
+      void vscode.window.setStatusBarMessage(buildErrorMessage(lineage.id, stage.id), 2200);
+      await this.renderAndSync();
+      return;
+    }
+
+    const escaped = await this.settlePetByFurnitureAffinity('error');
+    void vscode.window.setStatusBarMessage(
+      escaped ? buildErrorMessage(lineage.id, stage.id) : `${buildErrorMessage(lineage.id, stage.id)}，但附近没有合适的掩体。`,
+      2400,
+    );
+    await this.renderAndSync();
+  }
+
+  private async settlePetByFurnitureAffinity(
+    reason: PetAffinityReason,
+    requestedKinds: readonly FurnitureKind[] = [],
+  ): Promise<boolean> {
+    const state = this.stateStore.getState();
+    const stage = getGrowthStage(state.growthPoints);
+    const lineage = getLineageDefinition(state.petLineage);
+    const placements = state.placedFurniture;
+    if (placements.length === 0) {
+      return false;
+    }
+
+    const preferredKinds = mergeFurnitureKinds(lineage.preferredFurniture, requestedKinds);
+    if (reason === 'save' && !stage.growthProfile.supportsCelebrationReward) {
+      return false;
+    }
+    if (reason === 'error' && !stage.growthProfile.supportsEscapeSearch) {
+      return false;
+    }
+    if (
+      reason === 'placement' &&
+      stage.growthProfile.furnitureAffinity === 'weak' &&
+      !requestedKinds.some((kind) => lineage.preferredFurniture.includes(kind))
+    ) {
+      return false;
+    }
+
+    const activeDocumentUri = this.getPlaceableEditor()?.document.uri.toString();
+    const candidates = [...placements].sort((left, right) => {
+      const leftScore = scorePlacementPreference(left, preferredKinds, activeDocumentUri, stage.growthProfile.furnitureAffinity);
+      const rightScore = scorePlacementPreference(right, preferredKinds, activeDocumentUri, stage.growthProfile.furnitureAffinity);
+      return rightScore - leftScore;
+    });
+
+    const target = candidates[0];
+    if (!target) {
+      return false;
+    }
+
+    if (stage.growthProfile.furnitureAffinity === 'weak' && !preferredKinds.includes(target.kind)) {
+      return false;
+    }
+
+    return this.movePetNearPlacement(target, reason);
+  }
+
+  private async movePetNearPlacement(
+    placement: PlacedFurniture,
+    reason: PetAffinityReason,
+  ): Promise<boolean> {
+    if (placement.anchorType === 'dock') {
+      const offset = dockOffsetForReason(reason);
+      await this.stateStore.setPetDockPosition({
+        x: clampNumber(placement.x + offset.x, 0.1, 0.92),
+        y: clampNumber(placement.y + offset.y, 0.18, 0.86),
+      });
+      return true;
+    }
+
+    if (!placement.documentUri) {
+      return false;
+    }
+
+    const lineOffset = reason === 'error' ? 1 : 0;
+    await this.stateStore.setPetAnchor(placement.documentUri, Math.max(0, placement.line + lineOffset));
+    return true;
+  }
+
+  private buildGrowthUiState(state: EdenState): GrowthUiState {
+    const stage = getGrowthStage(state.growthPoints);
+    const lineage = getLineageDefinition(state.petLineage);
+    const nextStage = getNextGrowthStage(stage.id);
+
+    return {
+      lineage: state.petLineage,
+      lineageLabel: lineage.displayName,
+      lineageHint: lineage.description,
+      lineageSource: state.petLineageSource,
+      lineageSourceLabel: state.petLineageSource === 'manual' ? '当前来源：手动选择' : '当前来源：自动判定',
+      lineageSourceHint:
+        state.petLineageSource === 'manual'
+          ? '后续不会被自动覆盖，除非你主动重新自动判定。'
+          : '首次进入项目时会根据代码特征打分判定。',
+      growthPoints: state.growthPoints,
+      stageId: stage.id,
+      stageLabel: stage.displayName,
+      stageDescription: stage.uiDescription,
+      pointsToNextStage: nextStage ? Math.max(0, nextStage.minPoints - state.growthPoints) : 0,
+      nextStageLabel: nextStage?.displayName ?? null,
+      currentStatusLabel: describeCurrentStatus(state.petStatus, state.petLineage, stage.id, this.hasErrors),
+      currentStatusHint: describeCurrentStatusHint(state.petStatus, state.petLineage, stage.id, this.hasErrors),
+      preferredFurnitureLabel: lineage.preferredFurniture.map((kind) => getFurnitureLabel(kind)).join('、'),
+      behaviorHint: lineage.behaviorHint,
+      stageAbilityTitle: stage.abilityTitle,
+      stageAbilityHint: `${stage.abilityHint} 当前已解锁：${stage.behaviorUnlocks.join('、')}。`,
+    };
+  }
+
+  private buildPetVisualUiState(state: EdenState): PetVisualUiState {
+    const stage = getGrowthStage(state.growthPoints);
+    const lineage = getLineageDefinition(state.petLineage);
+    return {
+      lineage: state.petLineage,
+      lineageLabel: lineage.displayName,
+      stageId: stage.id,
+      stageLabel: stage.displayName,
+      paletteKey: lineage.paletteKey,
+      visualVariant: lineage.visualVariant,
+      detailLevel: stage.detailLevel,
+      sidebarScale: stage.sidebarScaleMultiplier,
+      dockScale: stage.dockScaleMultiplier,
+      editorScaleMultiplier: stage.editorScaleMultiplier,
+      idleMotionMs: getMotionProfile(state.petLineage, 'normal').motionMs,
+      workingMotionMs: getMotionProfile(state.petLineage, 'working').motionMs,
+      alertMotionMs: getMotionProfile(state.petLineage, 'startled').motionMs,
+      sidebarFilter: lineage.sidebarFilter,
+      dockFilter: lineage.dockFilter,
+      accentColor: lineage.accentColor,
+      preferredFurnitureLabel: lineage.preferredFurniture.map((kind) => getFurnitureLabel(kind)).join('、'),
+    };
+  }
+
   private buildViewState(): EdenViewState {
     const state = this.stateStore.getState();
     const target = this.resolvePetRenderTarget(state);
     return {
       state,
       editorPet: toEditorPetUiState(state, target, this.dockVisible),
+      growth: this.buildGrowthUiState(state),
+      petVisual: this.buildPetVisualUiState(state),
       shopItems: SHOP_ITEMS,
       petAnimationFrame: this.getPetAnimationFrame(state.petStatus),
       petEffect: this.petEffect,
@@ -739,6 +1102,7 @@ class EdenController implements vscode.Disposable {
   }
 
   private async renderAndSync(): Promise<void> {
+    this.ensurePetDecorationsCurrent();
     await this.render();
     await this.refreshStateDisplay();
   }
@@ -761,8 +1125,13 @@ class EdenController implements vscode.Disposable {
       petTarget.anchorLine !== undefined
     ) {
       const anchorRange = endOfLineRange(petTarget.editor.document, petTarget.anchorLine);
-      const activeDecoration = this.petDecorations[petMood][this.getPetAnimationFrame(state.petStatus)] ?? this.petDecorations[petMood][0];
-      const topOffset = computeTopOffset(petTarget.editor, petTarget.anchorLine, petTarget.displayLine) + (petTarget.topOffset ?? 0);
+      const activeDecoration = this.petDecorations[petMood][this.getPetAnimationFrame(state.petStatus)]
+        ?? this.petDecorations[petMood][0];
+      const topOffset = computeTopOffset(
+        petTarget.editor,
+        petTarget.anchorLine,
+        petTarget.displayLine,
+      ) + (petTarget.topOffset ?? 0);
 
       petTarget.editor.setDecorations(activeDecoration, [
         {
@@ -784,7 +1153,7 @@ class EdenController implements vscode.Disposable {
       const options = optionsForEditor[target.placement.kind] ?? [];
       options.push({
         range: endOfLineRange(target.editor.document, target.anchorLine),
-        hoverMessage: `${getFurnitureLabel(target.placement.kind)} ? ${formatAnchorType(target.placement.anchorType)}`,
+        hoverMessage: `${getFurnitureLabel(target.placement.kind)} · ${formatAnchorType(target.placement.anchorType)}`,
         renderOptions: {
           after: {
             margin: `0 0 0 ${target.marginLeft}px`,
@@ -898,10 +1267,7 @@ class EdenController implements vscode.Disposable {
       }
 
       if (placement.anchorType === 'line-bind') {
-        if (
-          placement.line < metrics.visibleRange.start.line ||
-          placement.line > metrics.visibleRange.end.line
-        ) {
+        if (placement.line < metrics.visibleRange.start.line || placement.line > metrics.visibleRange.end.line) {
           continue;
         }
 
@@ -962,11 +1328,8 @@ class EdenController implements vscode.Disposable {
   }
 
   private getPetAnimationFrame(status: PetStatus): number {
-    if (status === 'normal') {
-      return Math.floor(this.petAnimationTick / 2) % 2;
-    }
-
-    return this.petAnimationTick % 2;
+    const profile = getMotionProfile(this.stateStore.getState().petLineage, status);
+    return Math.floor(this.petAnimationTick / Math.max(1, profile.frameHold)) % 2;
   }
 
   private showPetEffect(kind: PetEffectKind, durationMs = 1400): void {
@@ -986,12 +1349,39 @@ class EdenController implements vscode.Disposable {
     }, durationMs);
   }
 
-  private rebuildPetDecorations(scale: number): void {
+  private scheduleFollowupEffect(kind: PetEffectKind, delayMs: number): void {
+    if (this.petFollowupEffectTimer) {
+      clearTimeout(this.petFollowupEffectTimer);
+      this.petFollowupEffectTimer = undefined;
+    }
+
+    this.petFollowupEffectTimer = setTimeout(() => {
+      this.petFollowupEffectTimer = undefined;
+      this.showPetEffect(kind, 1200);
+    }, delayMs);
+  }
+
+  private ensurePetDecorationsCurrent(): void {
+    const state = this.stateStore.getState();
+    const stage = getGrowthStage(state.growthPoints);
+    const signature = `${state.editorPetScale}:${state.petLineage}:${stage.id}`;
+    if (signature === this.currentPetDecorationSignature) {
+      return;
+    }
+
+    this.rebuildPetDecorationsForState();
+  }
+
+  private rebuildPetDecorationsForState(): void {
+    const state = this.stateStore.getState();
+    const stage = getGrowthStage(state.growthPoints);
+    const signature = `${state.editorPetScale}:${state.petLineage}:${stage.id}`;
     for (const decoration of Object.values(this.petDecorations).flat()) {
       decoration.dispose();
     }
 
-    this.petDecorations = this.createAllPetDecorations(scale);
+    this.currentPetDecorationSignature = signature;
+    this.petDecorations = this.createAllPetDecorations(state.editorPetScale);
   }
 
   private createAllPetDecorations(scale: number): Record<PetMood, readonly vscode.TextEditorDecorationType[]> {
@@ -1003,14 +1393,22 @@ class EdenController implements vscode.Disposable {
   }
 
   private createPetDecorations(assetPrefix: string, scale: number): readonly vscode.TextEditorDecorationType[] {
-    const iconSize = Math.round((PET_BASE_ICON_SIZE * sanitizePetScale(scale)) / 100);
+    const state = this.stateStore.getState();
+    const stage = getGrowthStage(state.growthPoints);
+    const iconSize = Math.round((PET_BASE_ICON_SIZE * sanitizePetScale(scale) / 100) * stage.editorScaleMultiplier);
+    const opacity = editorPetOpacityForLineage(state.petLineage);
     return [1, 2].map((index) => this.createPetDecoration(
       vscode.Uri.joinPath(this.context.extensionUri, 'media', `${assetPrefix}-${index}.svg`),
       iconSize,
+      opacity,
     ));
   }
 
-  private createPetDecoration(assetUri: vscode.Uri, iconSize: number): vscode.TextEditorDecorationType {
+  private createPetDecoration(
+    assetUri: vscode.Uri,
+    iconSize: number,
+    opacity: string,
+  ): vscode.TextEditorDecorationType {
     return vscode.window.createTextEditorDecorationType({
       after: {
         contentIconPath: assetUri,
@@ -1018,7 +1416,7 @@ class EdenController implements vscode.Disposable {
         height: `${iconSize}px`,
         margin: `0 0 0 ${PET_FLOAT_OFFSET_X}px`,
       },
-      opacity: '0.76',
+      opacity,
       rangeBehavior: vscode.DecorationRangeBehavior.ClosedClosed,
     });
   }
@@ -1045,6 +1443,187 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 }
 
 export function deactivate(): void {}
+
+function getNextGrowthStage(stageId: ReturnType<typeof getGrowthStage>['id']) {
+  const stages = [getGrowthStage(0), getGrowthStage(100), getGrowthStage(300)];
+  const current = stages.find((stage) => stage.id === stageId);
+  if (!current) {
+    return undefined;
+  }
+
+  return stages.find((stage) => stage.minPoints > current.minPoints);
+}
+
+function editorPetOpacityForLineage(lineage: PetLineage): string {
+  switch (lineage) {
+    case 'concurrency':
+      return '0.82';
+    case 'protocols':
+      return '0.75';
+    case 'chaos':
+      return '0.84';
+    default:
+      return '0.78';
+  }
+}
+
+function mergeFurnitureKinds(
+  preferredKinds: readonly FurnitureKind[],
+  requestedKinds: readonly FurnitureKind[],
+): readonly FurnitureKind[] {
+  return Array.from(new Set([...preferredKinds, ...requestedKinds]));
+}
+
+function scorePlacementPreference(
+  placement: PlacedFurniture,
+  preferredKinds: readonly FurnitureKind[],
+  activeDocumentUri: string | undefined,
+  affinity: 'weak' | 'medium' | 'strong',
+): number {
+  let score = 0;
+  const preferredIndex = preferredKinds.indexOf(placement.kind);
+  if (preferredIndex >= 0) {
+    score += 80 - preferredIndex * 6;
+  }
+  if (placement.documentUri && placement.documentUri === activeDocumentUri) {
+    score += 28;
+  }
+  if (placement.anchorType === 'dock') {
+    score += affinity === 'strong' ? 22 : 14;
+  }
+  if (placement.anchorType === 'viewport-float') {
+    score += 8;
+  }
+  if (affinity === 'strong') {
+    score += 10;
+  }
+  return score;
+}
+
+function dockOffsetForReason(reason: PetAffinityReason): { x: number; y: number } {
+  switch (reason) {
+    case 'error':
+      return { x: -0.08, y: -0.03 };
+    case 'save':
+      return { x: 0.06, y: -0.05 };
+    case 'interaction':
+      return { x: 0.04, y: -0.02 };
+    default:
+      return { x: -0.04, y: -0.02 };
+  }
+}
+
+function buildInteractionMessage(lineage: PetLineage, stageId: ReturnType<typeof getGrowthStage>['id']): string {
+  if (lineage === 'concurrency') {
+    return stageId === 'stage-c' ? '像电流一样绕着你飞快抖了两圈' : '轻快地蹦了蹦尾巴';
+  }
+  if (lineage === 'protocols') {
+    return stageId === 'stage-c' ? '认真地朝你点了点头，又在钢琴边转了一圈' : '安静地向你靠近了一点';
+  }
+  if (lineage === 'chaos') {
+    return stageId === 'stage-c' ? '先夸张地抖了一下，再开心地扑到你身边' : '有点紧张又很开心地蹭了蹭你';
+  }
+  return stageId === 'stage-c' ? '满足地绕着长椅转了一圈' : '开心地蹭了蹭你';
+}
+
+function buildSaveMessage(lineage: PetLineage, stageId: ReturnType<typeof getGrowthStage>['id']): string {
+  if (lineage === 'concurrency') {
+    return stageId === 'stage-a' ? '保存成功，它只是轻轻闪了一下' : '保存成功，它像小精灵一样飞快庆祝';
+  }
+  if (lineage === 'protocols') {
+    return stageId === 'stage-a' ? '保存成功，它安静地点了点头' : '保存成功，它像小管理员一样认真庆祝了一次';
+  }
+  if (lineage === 'chaos') {
+    return stageId === 'stage-a' ? '保存成功，它先愣了一下才敢开心' : '保存成功，它出现了巨大的反差式庆祝';
+  }
+  return stageId === 'stage-a' ? '保存成功，小家伙轻轻晃了晃身体' : '保存成功，它在熟悉的角落里开心地跳了跳';
+}
+
+function buildErrorMessage(lineage: PetLineage, stageId: ReturnType<typeof getGrowthStage>['id']): string {
+  if (stageId === 'stage-a') {
+    return '检测到错误，它只是缩了一下身子，还不太会主动找掩体';
+  }
+  if (lineage === 'concurrency') {
+    return '检测到错误，它一下窜到台灯或街机附近躲了起来';
+  }
+  if (lineage === 'protocols') {
+    return '检测到错误，它谨慎地退到钢琴或台灯旁整理状态';
+  }
+  if (lineage === 'chaos') {
+    return '检测到错误，它慌张地寻找树和长椅当掩体';
+  }
+  return '检测到错误，它会更喜欢缩到长椅和树边静一静';
+}
+
+function describeCurrentStatus(
+  status: PetStatus,
+  lineage: PetLineage,
+  stageId: ReturnType<typeof getGrowthStage>['id'],
+  hasErrors: boolean,
+): string {
+  if (hasErrors || status === 'startled') {
+    if (lineage === 'protocols') {
+      return '谨慎退避中';
+    }
+    if (lineage === 'chaos') {
+      return '戏剧性受惊中';
+    }
+    return stageId === 'stage-a' ? '受惊僵住中' : '受惊躲避中';
+  }
+
+  if (status === 'working') {
+    if (lineage === 'concurrency') {
+      return '高速编织中';
+    }
+    if (lineage === 'protocols') {
+      return '秩序搭建中';
+    }
+    if (lineage === 'chaos') {
+      return '混沌冲刺中';
+    }
+    return '认真成长中';
+  }
+
+  if (stageId === 'stage-c') {
+    return '原住民巡逻中';
+  }
+  if (stageId === 'stage-b') {
+    return '熟悉环境中';
+  }
+  return '轻轻观察中';
+}
+
+function describeCurrentStatusHint(
+  status: PetStatus,
+  lineage: PetLineage,
+  stageId: ReturnType<typeof getGrowthStage>['id'],
+  hasErrors: boolean,
+): string {
+  if (hasErrors || status === 'startled') {
+    return buildErrorMessage(lineage, stageId);
+  }
+
+  if (status === 'working') {
+    if (lineage === 'concurrency') {
+      return '这类宠物工作节奏最快，短时间写入较多代码时最容易进入高活跃状态。';
+    }
+    if (lineage === 'protocols') {
+      return '它在结构清晰的工程里最稳，会用更克制的动作保持专注。';
+    }
+    if (lineage === 'chaos') {
+      return '它会用更明显的抖动和节奏差来表达“现在真的很忙”。';
+    }
+    return '它会用更圆润的动作告诉你：这段时间的代码写得很顺。';
+  }
+
+  if (stageId === 'stage-a') {
+    return '继续写代码、保存成功、逗它一下，都能帮助它从初生期长大。';
+  }
+  if (stageId === 'stage-b') {
+    return '现在它会开始明显回应家具和环境，写代码的每次正反馈都会更有存在感。';
+  }
+  return '它已经进入成熟期，是这个项目真正的常住居民，下一步就可以承接更复杂的进化分支。';
+}
 
 function clearPetDecorations(
   editor: vscode.TextEditor,
@@ -1704,3 +2283,4 @@ function formatAnchorType(anchorType: FurnitureAnchorType): string {
 function toErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : '\u53d1\u751f\u4e86\u4e00\u4e2a\u672a\u77e5\u9519\u8bef\u3002';
 }
+

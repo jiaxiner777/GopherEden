@@ -1,4 +1,4 @@
-﻿import * as fs from 'fs';
+import * as fs from 'fs';
 import * as vscode from 'vscode';
 
 import { EdenViewState } from './types';
@@ -103,6 +103,10 @@ export class EdenDockProvider implements vscode.WebviewViewProvider {
         <div class="dock-status">
           <p class="eyebrow">GOPHER 乐园</p>
           <p class="stage-title">像素伊甸小屋</p>
+          <div class="dock-chip-row">
+            <span id="dock-lineage-chip" class="chip">原型派</span>
+            <span id="dock-stage-chip" class="chip muted">初生期</span>
+          </div>
           <p id="editor-pet-summary" class="description subtle">代码区宠物已关闭。你可以随时重新打开。</p>
         </div>
         <div class="header-actions">

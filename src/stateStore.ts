@@ -1,5 +1,6 @@
-import * as vscode from 'vscode';
+﻿import * as vscode from 'vscode';
 
+import { getGrowthStage } from './petConfig';
 import { SHOP_ITEMS, getShopItem } from './catalog';
 import {
   EdenState,
@@ -8,18 +9,25 @@ import {
   FurnitureKind,
   HabitatPoint,
   InventoryEntry,
+  PetLineage,
+  PetLineageSource,
   PetStatus,
   PlacedFurniture,
 } from './types';
 
-const LEGACY_STATE_KEY = 'gophersEden.state';
 const STATE_FILE_NAME = 'eden.json';
 
 const DEFAULT_STATE: EdenState = {
-  schemaVersion: 2,
+  schemaVersion: 5,
   totalBricks: 0,
   inspirationDew: 0,
   petName: 'Moss',
+  petLineage: 'primitives',
+  petLineageSource: 'auto',
+  petLineageSettled: false,
+  growthPoints: 0,
+  growthStage: 'stage-a',
+  successfulSaveCount: 0,
   theme: 'cyber-oasis',
   petAnchorLine: 0,
   petAnchorDocument: null,
@@ -81,6 +89,29 @@ export class EdenStateStore {
 
   public async setPetStatus(petStatus: PetStatus): Promise<EdenState> {
     return this.update({ petStatus });
+  }
+
+  public async setPetLineage(
+    petLineage: PetLineage,
+    petLineageSource: PetLineageSource = 'manual',
+    petLineageSettled = true,
+  ): Promise<EdenState> {
+    return this.update({ petLineage, petLineageSource, petLineageSettled });
+  }
+
+  public async addGrowthPoints(delta: number): Promise<EdenState> {
+    if (delta <= 0) {
+      return this.state;
+    }
+
+    return this.update({ growthPoints: this.state.growthPoints + delta });
+  }
+
+  public async recordSuccessfulSave(growthDelta = 3): Promise<EdenState> {
+    return this.update({
+      successfulSaveCount: this.state.successfulSaveCount + 1,
+      growthPoints: this.state.growthPoints + Math.max(0, growthDelta),
+    });
   }
 
   public async setEditorPetEnabled(editorPetEnabled: boolean): Promise<EdenState> {
@@ -214,9 +245,10 @@ export class EdenStateStore {
         return placement;
       }
 
-      const documentUri = anchorType === 'dock'
-        ? null
-        : context?.documentUri ?? placement.documentUri ?? this.state.petAnchorDocument;
+      const documentUri =
+        anchorType === 'dock'
+          ? null
+          : context?.documentUri ?? placement.documentUri ?? this.state.petAnchorDocument;
       const line =
         anchorType === 'dock' ? 0 : Math.max(0, context?.line ?? placement.line ?? this.state.petAnchorLine);
 
@@ -286,7 +318,7 @@ export class EdenStateStore {
         return this.normalizeState(parsed);
       } catch (error) {
         if (!isMissingFileError(error)) {
-          console.warn('[GopherEden] Failed to read project state file, fallback to legacy storage.', error);
+          console.warn('[GopherEden] Failed to read project state file.', error);
         }
       }
     }
@@ -321,11 +353,21 @@ export class EdenStateStore {
       state?.petAnchorLine ?? DEFAULT_STATE.petAnchorLine,
     );
 
+    const hasSavedLineage = isPetLineage(state?.petLineage);
+    const normalizedGrowthPoints = Math.max(0, state?.growthPoints ?? DEFAULT_STATE.growthPoints);
+    const growthStage = getGrowthStage(normalizedGrowthPoints).id;
+
     return {
-      schemaVersion: 2,
+      schemaVersion: 5,
       totalBricks: Math.max(0, state?.totalBricks ?? DEFAULT_STATE.totalBricks),
       inspirationDew: Math.max(0, state?.inspirationDew ?? DEFAULT_STATE.inspirationDew),
       petName: state?.petName?.trim() || DEFAULT_STATE.petName,
+      petLineage: hasSavedLineage ? (state!.petLineage as PetLineage) : DEFAULT_STATE.petLineage,
+      petLineageSource: hasSavedLineage ? normalizePetLineageSource(state?.petLineageSource) : 'auto',
+      petLineageSettled: hasSavedLineage ? (state?.petLineageSettled ?? true) : false,
+      growthPoints: normalizedGrowthPoints,
+      growthStage,
+      successfulSaveCount: Math.max(0, state?.successfulSaveCount ?? DEFAULT_STATE.successfulSaveCount),
       theme: state?.theme ?? DEFAULT_STATE.theme,
       petAnchorLine: Math.max(0, state?.petAnchorLine ?? DEFAULT_STATE.petAnchorLine),
       petAnchorDocument: state?.petAnchorDocument ?? DEFAULT_STATE.petAnchorDocument,
@@ -499,6 +541,14 @@ function sanitizeEditorPetScale(value: number): number {
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
+}
+
+function normalizePetLineageSource(value: unknown): PetLineageSource {
+  return value === 'manual' ? 'manual' : 'auto';
+}
+
+function isPetLineage(value: unknown): value is PetLineage {
+  return value === 'primitives' || value === 'concurrency' || value === 'protocols' || value === 'chaos';
 }
 
 function isFurnitureKind(value: unknown): value is FurnitureKind {
