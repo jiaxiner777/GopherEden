@@ -424,3 +424,96 @@ small {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+.dock-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.entity.pet {
+  --pet-scale: 1;
+  --pet-filter: none;
+  --pet-accent: var(--accent);
+  --idle-duration: 2400ms;
+  --working-duration: 1200ms;
+  --alert-duration: 800ms;
+}
+
+.entity.pet .pet-sprite {
+  width: calc(72px * var(--pet-scale));
+  height: calc(72px * var(--pet-scale));
+  animation-duration: var(--idle-duration);
+}
+
+.entity.pet .pet-sprite svg {
+  filter: var(--pet-filter) drop-shadow(0 10px 14px rgba(0, 0, 0, 0.3));
+}
+
+.entity.pet.pet-status-working .pet-sprite {
+  animation-duration: var(--working-duration);
+}
+
+.entity.pet.pet-status-startled .pet-sprite {
+  animation-duration: var(--alert-duration);
+}
+
+.entity.pet.stage-stage-b::after,
+.entity.pet.stage-stage-c::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.entity.pet.stage-stage-b::after {
+  top: -8px;
+  width: 16px;
+  height: 16px;
+  border-radius: 6px 6px 12px 12px;
+  background: color-mix(in srgb, var(--pet-accent) 58%, white 42%);
+  opacity: 0.82;
+}
+
+.entity.pet.stage-stage-c::after {
+  top: -12px;
+  width: 58px;
+  height: 20px;
+  border-radius: 999px;
+  background: radial-gradient(circle at center, color-mix(in srgb, var(--pet-accent) 60%, white 40%), transparent 72%);
+  opacity: 0.74;
+}
+
+.entity.pet.lineage-chaos .pet-sprite {
+  animation-name: petFloat, petChaosTwitch;
+  animation-duration: var(--idle-duration), 760ms;
+  animation-iteration-count: infinite, infinite;
+}
+
+.entity.pet.lineage-chaos.pet-status-working .pet-sprite {
+  animation-duration: var(--working-duration), 620ms;
+}
+
+.entity.pet.lineage-chaos.pet-status-startled .pet-sprite {
+  animation-duration: var(--alert-duration), 420ms;
+}
+
+.entity.pet.lineage-concurrency .entity-label {
+  color: #204f66;
+}
+
+.entity.pet.lineage-protocols .entity-label {
+  color: #5d3c16;
+}
+
+.entity.pet.lineage-chaos .entity-label {
+  color: #6a2d26;
+}
+
+@keyframes petChaosTwitch {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-1deg); }
+  75% { transform: rotate(1deg); }
+}

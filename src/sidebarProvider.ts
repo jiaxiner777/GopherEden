@@ -1,7 +1,7 @@
-import * as fs from 'fs';
+﻿import * as fs from 'fs';
 import * as vscode from 'vscode';
 
-import { EdenTheme, FurnitureAnchorType, FurnitureKind, EdenViewState } from './types';
+import { EdenTheme, FurnitureAnchorType, FurnitureKind, EdenViewState, PetLineage } from './types';
 
 export type SidebarMessage =
   | { type: 'ready' }
@@ -9,6 +9,8 @@ export type SidebarMessage =
   | { type: 'playWithPet' }
   | { type: 'openDock' }
   | { type: 'toggleEditorPet' }
+  | { type: 'redetectLineage' }
+  | { type: 'setLineage'; lineage: PetLineage }
   | { type: 'setEditorPetScale'; scale: number }
   | { type: 'toggleSection'; section: string }
   | { type: 'returnAllPlacements' }
@@ -102,7 +104,11 @@ export class EdenSidebarProvider implements vscode.WebviewViewProvider {
             <p class="eyebrow">GOPHER'S EDEN</p>
             <h1 id="pet-name">Moss</h1>
             <p id="pet-status" class="status-pill">悠闲中</p>
-            <p class="helper-copy compact">点击宠物卡可以改名，互动按钮会让它立刻回应。</p>
+            <div class="pet-chip-row">
+              <span id="pet-lineage-chip" class="pet-chip">原型派</span>
+              <span id="pet-stage-chip" class="pet-chip pet-chip-strong">初生期</span>
+            </div>
+            <p class="helper-copy compact">点击宠物卡可以改名，逗玩、保存、买家具和摆放家具都会让它继续成长。</p>
           </div>
         </button>
         <div class="hero-actions">
@@ -117,7 +123,7 @@ export class EdenSidebarProvider implements vscode.WebviewViewProvider {
             <strong id="editor-pet-scale-value">100%</strong>
           </div>
           <input id="editor-pet-scale" class="pet-size-slider" type="range" min="70" max="220" step="10" value="100" />
-          <p class="helper-copy compact">这里只调代码里的陪伴投影，底部乐园里的大小保持固定。</p>
+          <p class="helper-copy compact">这里只调整代码区里的轻量投影，底部乐园里的大小由成长阶段自动控制。</p>
         </div>
       </section>
 
@@ -130,12 +136,12 @@ export class EdenSidebarProvider implements vscode.WebviewViewProvider {
           <article class="resource-card">
             <span class="resource-label">碎砖</span>
             <strong id="resource-bricks">0</strong>
-            <small>每新增 10 行有效源码/文本 +1（忽略 .gitignore、压缩包与构建产物）</small>
+            <small>每新增 10 行有效源码或文本 +1，忽略 .gitignore、压缩包与构建产物。</small>
           </article>
           <article class="resource-card">
             <span class="resource-label">露珠</span>
             <strong id="resource-dew">0</strong>
-            <small>一次删改超过 5 行逻辑时获得</small>
+            <small>单次删改超过 5 行逻辑时获得，用来买更特别的小摆件。</small>
           </article>
         </div>
         <div class="theme-grid">
@@ -145,11 +151,64 @@ export class EdenSidebarProvider implements vscode.WebviewViewProvider {
         <p class="helper-copy">状态会保存到项目中的 <code>.vscode/eden.json</code>。</p>
       </section>
 
+      <section class="panel growth-panel">
+        <div class="panel-header">
+          <div>
+            <h2>成长信息</h2>
+            <p class="helper-copy inline-copy">这里会明确告诉你：它属于什么种族、长到哪一阶段、下一步还会发生什么变化。</p>
+          </div>
+          <span id="growth-stage-pill" class="panel-badge">初生期</span>
+        </div>
+        <div class="growth-grid">
+          <article class="growth-card growth-card-wide">
+            <span class="resource-label">当前种族</span>
+            <strong id="growth-lineage">Primitives / 原型派</strong>
+            <small id="growth-lineage-hint">最朴素、最亲和、最容易满足，动作圆润又放松。</small>
+            <p id="growth-lineage-source" class="helper-copy compact growth-source">当前来源：自动判定</p>
+          </article>
+          <article class="growth-card">
+            <span class="resource-label">当前阶段</span>
+            <strong id="growth-stage-name">初生期</strong>
+            <small id="growth-stage-description">它刚来到这个工程，动作还很稚嫩。</small>
+          </article>
+          <article class="growth-card">
+            <span class="resource-label">成长值</span>
+            <strong id="growth-points">0</strong>
+            <small id="growth-next">距离下一阶段还差 100 点</small>
+          </article>
+          <article class="growth-card">
+            <span class="resource-label">偏好家具</span>
+            <strong id="growth-preference">小木椅、像素盆栽</strong>
+            <small id="growth-behavior">它喜欢在长椅和树边慢悠悠地待着，是最可爱松弛的一支。</small>
+          </article>
+          <article class="growth-card growth-card-wide">
+            <span class="resource-label">阶段解锁能力</span>
+            <strong id="growth-stage-ability-title">基础陪伴动作</strong>
+            <small id="growth-stage-ability-hint">当前只解锁基础 idle / alert / working，和家具的联动还很弱。</small>
+          </article>
+          <article class="growth-card growth-card-wide">
+            <span class="resource-label">当前状态说明</span>
+            <strong id="growth-status">轻轻观察中</strong>
+            <small id="growth-status-hint">继续写代码、保存成功、逗它一下，都能帮助它从初生期长大。</small>
+          </article>
+        </div>
+        <div class="lineage-picker" aria-label="手动切换种族">
+          <button class="lineage-button" type="button" data-lineage-choice="primitives">Primitives</button>
+          <button class="lineage-button" type="button" data-lineage-choice="concurrency">Concurrency</button>
+          <button class="lineage-button" type="button" data-lineage-choice="protocols">Protocols</button>
+          <button class="lineage-button" type="button" data-lineage-choice="chaos">Chaos</button>
+        </div>
+        <div class="growth-actions">
+          <button class="action-button" type="button" data-action="redetectLineage">重新自动判定</button>
+        </div>
+        <p class="helper-copy compact">手动切换后会优先保留你的选择，后续不会被自动覆盖；只有你主动点击“重新自动判定”才会重新扫描项目。</p>
+      </section>
+
       <section class="panel manage-panel">
         <div class="panel-header stacked">
           <div>
             <h2>空间整理</h2>
-            <p class="helper-copy inline-copy">保持界面干净，真正要摆东西时再展开背包或商店。</p>
+            <p class="helper-copy inline-copy">平时保持界面干净，真要摆东西时再展开背包或商店。</p>
           </div>
           <button id="return-all-button" class="mini-button danger" type="button" data-action="returnAllPlacements">一键全部收回背包</button>
         </div>
@@ -170,7 +229,7 @@ export class EdenSidebarProvider implements vscode.WebviewViewProvider {
             <p id="inventory-selected" class="helper-copy"></p>
             <div class="placement-button-grid">
               <button class="action-button action-primary" type="button" data-place-anchor="line-bind">摆到代码区 · 跟行</button>
-              <button class="action-button" type="button" data-place-anchor="viewport-float">摆到代码区 · 漂浮</button>
+              <button class="action-button" type="button" data-place-anchor="viewport-float">摆到代码区 · 浮层</button>
               <button class="action-button ghost" type="button" data-place-anchor="dock">摆到底部乐园</button>
             </div>
           </div>
@@ -195,7 +254,7 @@ export class EdenSidebarProvider implements vscode.WebviewViewProvider {
         <button class="fold-header" type="button" data-toggle-section="shop">
           <span>
             <strong>The Well / 商店</strong>
-            <small>需要时再展开，别让界面长期像素材面板</small>
+            <small>需要时再展开，别让界面长期像素材测试面板。</small>
           </span>
           <span class="fold-indicator">展开</span>
         </button>
