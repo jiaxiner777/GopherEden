@@ -4,6 +4,7 @@ import { SHOP_ITEMS } from './catalog';
 import { debounce } from './debounce';
 import { DockMessage, EdenDockProvider } from './dockProvider';
 import { getFurnitureAssetFile, getFurnitureLabel } from './furniture';
+import { getPetAssetUri } from './mediaPaths';
 import {
   getGrowthStage,
   PET_LINEAGES,
@@ -114,7 +115,7 @@ class EdenController implements vscode.Disposable {
   private dockVisible = false;
 
   public constructor(private readonly context: vscode.ExtensionContext) {
-    this.stateStore = new EdenStateStore(context);
+    this.stateStore = new EdenStateStore();
     this.sidebarProvider = new EdenSidebarProvider(context.extensionUri);
     this.dockProvider = new EdenDockProvider(context.extensionUri, (visible) => {
       this.dockVisible = visible;
@@ -1398,7 +1399,7 @@ class EdenController implements vscode.Disposable {
     const iconSize = Math.round((PET_BASE_ICON_SIZE * sanitizePetScale(scale) / 100) * stage.editorScaleMultiplier);
     const opacity = editorPetOpacityForLineage(state.petLineage);
     return [1, 2].map((index) => this.createPetDecoration(
-      vscode.Uri.joinPath(this.context.extensionUri, 'media', `${assetPrefix}-${index}.svg`),
+      getPetAssetUri(this.context.extensionUri, state.petLineage, `${assetPrefix}-${index}.svg`),
       iconSize,
       opacity,
     ));
@@ -1425,7 +1426,7 @@ class EdenController implements vscode.Disposable {
     const size = FURNITURE_ICON_SIZES[kind];
     return vscode.window.createTextEditorDecorationType({
       after: {
-        contentIconPath: vscode.Uri.joinPath(this.context.extensionUri, 'media', getFurnitureAssetFile(kind)),
+        contentIconPath: vscode.Uri.joinPath(this.context.extensionUri, 'media', 'furniture', 'default', getFurnitureAssetFile(kind)),
         width: `${size}px`,
         height: `${size}px`,
         margin: `0 0 0 ${FURNITURE_BASE_OFFSET_X}px`,
@@ -2283,4 +2284,3 @@ function formatAnchorType(anchorType: FurnitureAnchorType): string {
 function toErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : '\u53d1\u751f\u4e86\u4e00\u4e2a\u672a\u77e5\u9519\u8bef\u3002';
 }
-

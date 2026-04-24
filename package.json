@@ -33,14 +33,14 @@
         {
           "id": "gophersEden",
           "title": "Gopher 乐园",
-          "icon": "media/activity-icon.svg"
+          "icon": "media/ui/activity-icon.svg"
         }
       ],
       "panel": [
         {
           "id": "gophersEdenPanel",
           "title": "Gopher 底部乐园",
-          "icon": "media/activity-icon.svg"
+          "icon": "media/ui/activity-icon.svg"
         }
       ]
     },
@@ -50,7 +50,7 @@
           "id": "gophersEden.sidebar",
           "name": "伊甸面板",
           "type": "webview",
-          "icon": "media/activity-icon.svg"
+          "icon": "media/ui/activity-icon.svg"
         }
       ],
       "gophersEdenPanel": [
@@ -58,7 +58,7 @@
           "id": "gophersEden.dock",
           "name": "底部乐园",
           "type": "webview",
-          "icon": "media/activity-icon.svg",
+          "icon": "media/ui/activity-icon.svg",
           "visibility": "visible"
         }
       ]
@@ -119,9 +119,9 @@
     "package": "npm run compile && node ./node_modules/@vscode/vsce/vsce package --no-dependencies"
   },
   "devDependencies": {
-    "@types/node": "^20.16.5",
+    "@types/node": "^20.19.39",
     "@types/vscode": "^1.95.0",
-    "@vscode/vsce": "^3.8.0",
+    "@vscode/vsce": "^2.25.0",
     "gifenc": "^1.0.3",
     "pngjs": "^7.0.0",
     "typescript": "^5.6.2"
