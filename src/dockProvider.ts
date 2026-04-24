@@ -1,6 +1,13 @@
 import * as fs from 'fs';
 import * as vscode from 'vscode';
 
+import {
+  getFurnitureAssetPath,
+  getPetAssetPath,
+  getPetEffectAssetPath,
+  getWebviewScriptUri,
+  getWebviewStyleUri,
+} from './mediaPaths';
 import { EdenViewState } from './types';
 
 export type DockMessage =
@@ -54,30 +61,34 @@ export class EdenDockProvider implements vscode.WebviewViewProvider {
   }
 
   private getHtml(webview: vscode.Webview): string {
-    const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, 'media', 'dock.js'));
-    const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, 'media', 'dock.css'));
+    const scriptUri = getWebviewScriptUri(webview, this.extensionUri, 'dock.js');
+    const styleUri = getWebviewStyleUri(webview, this.extensionUri, 'dock.css');
 
     const petMarkup = {
-      normal1: this.readSvgMarkup('gopher-normal-1.svg'),
-      normal2: this.readSvgMarkup('gopher-normal-2.svg'),
-      alert1: this.readSvgMarkup('gopher-alert-1.svg'),
-      alert2: this.readSvgMarkup('gopher-alert-2.svg'),
-      working1: this.readSvgMarkup('gopher-working-1.svg'),
-      working2: this.readSvgMarkup('gopher-working-2.svg'),
+      normal1: this.readSvgMarkup(getPetAssetPath('primitives', 'gopher-normal-1.svg')),
+      normal2: this.readSvgMarkup(getPetAssetPath('primitives', 'gopher-normal-2.svg')),
+      alert1: this.readSvgMarkup(getPetAssetPath('primitives', 'gopher-alert-1.svg')),
+      alert2: this.readSvgMarkup(getPetAssetPath('primitives', 'gopher-alert-2.svg')),
+      working1: this.readSvgMarkup(getPetAssetPath('primitives', 'gopher-working-1.svg')),
+      working2: this.readSvgMarkup(getPetAssetPath('primitives', 'gopher-working-2.svg')),
     };
 
     const effectMarkup = {
-      heart: this.readSvgMarkup('pet-heart.svg'),
-      alert: this.readSvgMarkup('pet-alert-mark.svg'),
-      sparkle: this.readSvgMarkup('pet-sparkle.svg'),
+      heart: this.readSvgMarkup(getPetEffectAssetPath('pet-heart.svg')),
+      alert: this.readSvgMarkup(getPetEffectAssetPath('pet-alert-mark.svg')),
+      sparkle: this.readSvgMarkup(getPetEffectAssetPath('pet-sparkle.svg')),
     };
 
     const furnitureData = {
-      piano: this.getInlineSvgDataUri('piano.svg'),
-      bench: this.getInlineSvgDataUri('bench.svg'),
-      tree: this.getInlineSvgDataUri('tree.svg'),
-      lamp: this.getInlineSvgDataUri('lamp.svg'),
-      grass: this.getInlineSvgDataUri('grass.svg'),
+      piano: this.getInlineSvgDataUri(getFurnitureAssetPath('piano')),
+      bench: this.getInlineSvgDataUri(getFurnitureAssetPath('bench')),
+      tree: this.getInlineSvgDataUri(getFurnitureAssetPath('tree')),
+      lamp: this.getInlineSvgDataUri(getFurnitureAssetPath('lamp')),
+      grass: this.getInlineSvgDataUri(getFurnitureAssetPath('grass')),
+    };
+    const summerData = {
+      floorTiles: this.getInlineBinaryDataUri(['furniture', 'summer_limited', 'floor-tiles.png'], 'image/png'),
+      floorBlendMask: this.getInlineBinaryDataUri(['furniture', 'summer_limited', 'floor-blend-mask.png'], 'image/png'),
     };
 
     const assetPayload = this.serializeForInlineScript({ petMarkup, effectMarkup });
@@ -96,6 +107,8 @@ export class EdenDockProvider implements vscode.WebviewViewProvider {
     data-asset-tree="${furnitureData.tree}"
     data-asset-lamp="${furnitureData.lamp}"
     data-asset-grass="${furnitureData.grass}"
+    data-summer-floor-tiles="${summerData.floorTiles}"
+    data-summer-floor-blend-mask="${summerData.floorBlendMask}"
   >
     <script id="eden-assets" type="application/json">${assetPayload}</script>
     <main class="dock-app">
@@ -143,15 +156,21 @@ export class EdenDockProvider implements vscode.WebviewViewProvider {
 </html>`;
   }
 
-  private readSvgMarkup(fileName: string): string {
-    const filePath = vscode.Uri.joinPath(this.extensionUri, 'media', fileName).fsPath;
+  private readSvgMarkup(pathSegments: readonly string[]): string {
+    const filePath = vscode.Uri.joinPath(this.extensionUri, 'media', ...pathSegments).fsPath;
     return fs.readFileSync(filePath, 'utf8').replace(/^<\?xml[^>]*>\s*/i, '');
   }
 
-  private getInlineSvgDataUri(fileName: string): string {
-    const filePath = vscode.Uri.joinPath(this.extensionUri, 'media', fileName).fsPath;
+  private getInlineSvgDataUri(pathSegments: readonly string[]): string {
+    const filePath = vscode.Uri.joinPath(this.extensionUri, 'media', ...pathSegments).fsPath;
     const svg = fs.readFileSync(filePath, 'utf8');
     return `data:image/svg+xml;base64,${Buffer.from(svg, 'utf8').toString('base64')}`;
+  }
+
+  private getInlineBinaryDataUri(pathSegments: readonly string[], mimeType: string): string {
+    const filePath = vscode.Uri.joinPath(this.extensionUri, 'media', ...pathSegments).fsPath;
+    const content = fs.readFileSync(filePath);
+    return `data:${mimeType};base64,${content.toString('base64')}`;
   }
 
   private serializeForInlineScript(value: unknown): string {

@@ -1,4 +1,5 @@
-﻿import { FurnitureKind } from './types';
+﻿import { getFurnitureAssetFileName } from './mediaPaths';
+import { FurnitureKind } from './types';
 
 export const FURNITURE_LABELS: Readonly<Record<FurnitureKind, string>> = {
   piano: '像素钢琴',
@@ -21,5 +22,5 @@ export function getFurnitureLabel(kind: FurnitureKind): string {
 }
 
 export function getFurnitureAssetFile(kind: FurnitureKind): string {
-  return FURNITURE_ASSET_FILES[kind];
+  return getFurnitureAssetFileName(kind);
 }

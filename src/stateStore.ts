@@ -56,7 +56,7 @@ type LegacyState = Partial<Omit<EdenState, 'schemaVersion' | 'inventory' | 'plac
 export class EdenStateStore {
   private state: EdenState = DEFAULT_STATE;
 
-  public constructor(private readonly context: vscode.ExtensionContext) {}
+  public constructor() {}
 
   public async initialize(): Promise<EdenState> {
     this.state = await this.loadState();

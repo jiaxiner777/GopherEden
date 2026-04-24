@@ -1,7 +1,7 @@
 ﻿# Gopher's Eden
 
 <p align="center">
-  <img src="./media/readme-banner.gif" alt="Gopher's Eden README Banner" width="100%" />
+  <img src="./media/docs/readme-banner.gif" alt="Gopher's Eden README Banner" width="100%" />
 </p>
 
 <p align="center">
@@ -26,7 +26,7 @@
 ## 宠物状态预览
 
 <p align="center">
-  <img src="./media/readme-pet-states.png" alt="Gopher pet states" width="100%" />
+  <img src="./media/docs/readme-pet-states.png" alt="Gopher pet states" width="100%" />
 </p>
 
 ## 系统结构

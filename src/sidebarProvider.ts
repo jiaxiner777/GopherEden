@@ -1,6 +1,13 @@
 ﻿import * as fs from 'fs';
 import * as vscode from 'vscode';
 
+import {
+  getFurnitureAssetPath,
+  getPetAssetPath,
+  getPetEffectAssetPath,
+  getWebviewScriptUri,
+  getWebviewStyleUri,
+} from './mediaPaths';
 import { EdenTheme, FurnitureAnchorType, FurnitureKind, EdenViewState, PetLineage } from './types';
 
 export type SidebarMessage =
@@ -47,30 +54,34 @@ export class EdenSidebarProvider implements vscode.WebviewViewProvider {
   }
 
   private getHtml(webview: vscode.Webview): string {
-    const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, 'media', 'sidebar.js'));
-    const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, 'media', 'sidebar.css'));
+    const scriptUri = getWebviewScriptUri(webview, this.extensionUri, 'sidebar.js');
+    const styleUri = getWebviewStyleUri(webview, this.extensionUri, 'sidebar.css');
 
     const petMarkup = {
-      normal1: this.readSvgMarkup('gopher-normal-1.svg'),
-      normal2: this.readSvgMarkup('gopher-normal-2.svg'),
-      alert1: this.readSvgMarkup('gopher-alert-1.svg'),
-      alert2: this.readSvgMarkup('gopher-alert-2.svg'),
-      working1: this.readSvgMarkup('gopher-working-1.svg'),
-      working2: this.readSvgMarkup('gopher-working-2.svg'),
+      normal1: this.readSvgMarkup(getPetAssetPath('primitives', 'gopher-normal-1.svg')),
+      normal2: this.readSvgMarkup(getPetAssetPath('primitives', 'gopher-normal-2.svg')),
+      alert1: this.readSvgMarkup(getPetAssetPath('primitives', 'gopher-alert-1.svg')),
+      alert2: this.readSvgMarkup(getPetAssetPath('primitives', 'gopher-alert-2.svg')),
+      working1: this.readSvgMarkup(getPetAssetPath('primitives', 'gopher-working-1.svg')),
+      working2: this.readSvgMarkup(getPetAssetPath('primitives', 'gopher-working-2.svg')),
     };
 
     const effectMarkup = {
-      heart: this.readSvgMarkup('pet-heart.svg'),
-      alert: this.readSvgMarkup('pet-alert-mark.svg'),
-      sparkle: this.readSvgMarkup('pet-sparkle.svg'),
+      heart: this.readSvgMarkup(getPetEffectAssetPath('pet-heart.svg')),
+      alert: this.readSvgMarkup(getPetEffectAssetPath('pet-alert-mark.svg')),
+      sparkle: this.readSvgMarkup(getPetEffectAssetPath('pet-sparkle.svg')),
     };
 
     const furnitureData = {
-      piano: this.getInlineSvgDataUri('piano.svg'),
-      bench: this.getInlineSvgDataUri('bench.svg'),
-      tree: this.getInlineSvgDataUri('tree.svg'),
-      lamp: this.getInlineSvgDataUri('lamp.svg'),
-      grass: this.getInlineSvgDataUri('grass.svg'),
+      piano: this.getInlineSvgDataUri(getFurnitureAssetPath('piano')),
+      bench: this.getInlineSvgDataUri(getFurnitureAssetPath('bench')),
+      tree: this.getInlineSvgDataUri(getFurnitureAssetPath('tree')),
+      lamp: this.getInlineSvgDataUri(getFurnitureAssetPath('lamp')),
+      grass: this.getInlineSvgDataUri(getFurnitureAssetPath('grass')),
+    };
+    const summerData = {
+      floorTiles: this.getInlineBinaryDataUri(['furniture', 'summer_limited', 'floor-tiles.png'], 'image/png'),
+      floorBlendMask: this.getInlineBinaryDataUri(['furniture', 'summer_limited', 'floor-blend-mask.png'], 'image/png'),
     };
 
     const assetPayload = this.serializeForInlineScript({ petMarkup, effectMarkup });
@@ -90,6 +101,8 @@ export class EdenSidebarProvider implements vscode.WebviewViewProvider {
     data-asset-tree="${furnitureData.tree}"
     data-asset-lamp="${furnitureData.lamp}"
     data-asset-grass="${furnitureData.grass}"
+    data-summer-floor-tiles="${summerData.floorTiles}"
+    data-summer-floor-blend-mask="${summerData.floorBlendMask}"
   >
     <script id="eden-assets" type="application/json">${assetPayload}</script>
     <main class="app">
@@ -260,6 +273,29 @@ export class EdenSidebarProvider implements vscode.WebviewViewProvider {
         </button>
         <div class="fold-body is-hidden" data-section-body="shop">
           <div id="shop-list" class="shop-list"></div>
+          <section class="seasonal-showcase">
+            <div class="seasonal-showcase-header">
+              <strong>夏季限定装修 uu</strong>
+              <span class="panel-badge">Summer Limited</span>
+            </div>
+            <p class="helper-copy">这套主题已经接入当前插件商店。地板采用 1px 深色砖缝、左上高光、右下阴影的 Floor Tiles 结构，并附带中心透明的融合边框素材，方便贴合花盆和家具边缘。</p>
+            <div class="seasonal-showcase-grid">
+              <article class="seasonal-card">
+                <div class="seasonal-preview seasonal-floor-preview" data-summer-preview="floorTiles"></div>
+                <div class="shop-copy">
+                  <strong>Floor Tiles / 地板瓦片</strong>
+                  <small>自带砖缝边框和伪 3D 光影，拼接后会有嵌入式网格感。</small>
+                </div>
+              </article>
+              <article class="seasonal-card">
+                <div class="seasonal-preview seasonal-mask-preview" data-summer-preview="floorBlendMask"></div>
+                <div class="shop-copy">
+                  <strong>Floor Blend Mask / 融合边框</strong>
+                  <small>中心透明，只保留边缘高光与阴影，用来把家具底边压进地板里。</small>
+                </div>
+              </article>
+            </div>
+          </section>
         </div>
       </section>
     </main>
@@ -268,15 +304,21 @@ export class EdenSidebarProvider implements vscode.WebviewViewProvider {
 </html>`;
   }
 
-  private readSvgMarkup(fileName: string): string {
-    const filePath = vscode.Uri.joinPath(this.extensionUri, 'media', fileName).fsPath;
+  private readSvgMarkup(pathSegments: readonly string[]): string {
+    const filePath = vscode.Uri.joinPath(this.extensionUri, 'media', ...pathSegments).fsPath;
     return fs.readFileSync(filePath, 'utf8').replace(/^<\?xml[^>]*>\s*/i, '');
   }
 
-  private getInlineSvgDataUri(fileName: string): string {
-    const filePath = vscode.Uri.joinPath(this.extensionUri, 'media', fileName).fsPath;
+  private getInlineSvgDataUri(pathSegments: readonly string[]): string {
+    const filePath = vscode.Uri.joinPath(this.extensionUri, 'media', ...pathSegments).fsPath;
     const svg = fs.readFileSync(filePath, 'utf8');
     return `data:image/svg+xml;base64,${Buffer.from(svg, 'utf8').toString('base64')}`;
+  }
+
+  private getInlineBinaryDataUri(pathSegments: readonly string[], mimeType: string): string {
+    const filePath = vscode.Uri.joinPath(this.extensionUri, 'media', ...pathSegments).fsPath;
+    const content = fs.readFileSync(filePath);
+    return `data:${mimeType};base64,${content.toString('base64')}`;
   }
 
   private serializeForInlineScript(value: unknown): string {
