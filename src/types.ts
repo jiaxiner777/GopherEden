@@ -6,7 +6,7 @@ export type PetLineageSource = 'auto' | 'manual';
 export type GrowthStageId = 'stage-a' | 'stage-b' | 'stage-c';
 export type PetEffectKind = 'heart' | 'sparkle' | 'alert';
 
-export type FurnitureKind = 'piano' | 'bench' | 'tree' | 'lamp' | 'grass';
+export type FurnitureKind = string;
 
 export type FurnitureAnchorType = 'line-bind' | 'viewport-float' | 'dock';
 

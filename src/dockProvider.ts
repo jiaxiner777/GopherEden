@@ -2,13 +2,20 @@ import * as fs from 'fs';
 import * as vscode from 'vscode';
 
 import {
-  getFurnitureAssetPath,
   getPetAssetPath,
   getPetEffectAssetPath,
   getWebviewScriptUri,
   getWebviewStyleUri,
 } from './mediaPaths';
-import { EdenViewState } from './types';
+import {
+  getFurnitureKinds,
+  getFurnitureLabel,
+  getFurnitureAssetPath,
+  getRoomLayoutConfig,
+  getFloorTileAssetPath,
+  getFloorTileMaskPath,
+} from './roomConfig';
+import { EdenViewState, PetLineage } from './types';
 
 export type DockMessage =
   | { type: 'ready' }
@@ -64,14 +71,22 @@ export class EdenDockProvider implements vscode.WebviewViewProvider {
     const scriptUri = getWebviewScriptUri(webview, this.extensionUri, 'dock.js');
     const styleUri = getWebviewStyleUri(webview, this.extensionUri, 'dock.css');
 
-    const petMarkup = {
-      normal1: this.readSvgMarkup(getPetAssetPath('primitives', 'gopher-normal-1.svg')),
-      normal2: this.readSvgMarkup(getPetAssetPath('primitives', 'gopher-normal-2.svg')),
-      alert1: this.readSvgMarkup(getPetAssetPath('primitives', 'gopher-alert-1.svg')),
-      alert2: this.readSvgMarkup(getPetAssetPath('primitives', 'gopher-alert-2.svg')),
-      working1: this.readSvgMarkup(getPetAssetPath('primitives', 'gopher-working-1.svg')),
-      working2: this.readSvgMarkup(getPetAssetPath('primitives', 'gopher-working-2.svg')),
+    const loadLineage = (lineage: PetLineage) => ({
+      normal1: this.readSvgMarkup(getPetAssetPath(lineage, 'gopher-normal-1.svg')),
+      normal2: this.readSvgMarkup(getPetAssetPath(lineage, 'gopher-normal-2.svg')),
+      alert1: this.readSvgMarkup(getPetAssetPath(lineage, 'gopher-alert-1.svg')),
+      alert2: this.readSvgMarkup(getPetAssetPath(lineage, 'gopher-alert-2.svg')),
+      working1: this.readSvgMarkup(getPetAssetPath(lineage, 'gopher-working-1.svg')),
+      working2: this.readSvgMarkup(getPetAssetPath(lineage, 'gopher-working-2.svg')),
+    });
+
+    const allPetMarkup = {
+      primitives: loadLineage('primitives'),
+      concurrency: loadLineage('concurrency'),
+      protocols: loadLineage('protocols'),
+      chaos: loadLineage('chaos'),
     };
+    const petMarkup = allPetMarkup.primitives;
 
     const effectMarkup = {
       heart: this.readSvgMarkup(getPetEffectAssetPath('pet-heart.svg')),
@@ -79,19 +94,28 @@ export class EdenDockProvider implements vscode.WebviewViewProvider {
       sparkle: this.readSvgMarkup(getPetEffectAssetPath('pet-sparkle.svg')),
     };
 
-    const furnitureData = {
-      piano: this.getInlineSvgDataUri(getFurnitureAssetPath('piano')),
-      bench: this.getInlineSvgDataUri(getFurnitureAssetPath('bench')),
-      tree: this.getInlineSvgDataUri(getFurnitureAssetPath('tree')),
-      lamp: this.getInlineSvgDataUri(getFurnitureAssetPath('lamp')),
-      grass: this.getInlineSvgDataUri(getFurnitureAssetPath('grass')),
-    };
-    const summerData = {
-      floorTiles: this.getInlineBinaryDataUri(['furniture', 'summer_limited', 'floor-tiles.png'], 'image/png'),
-      floorBlendMask: this.getInlineBinaryDataUri(['furniture', 'summer_limited', 'floor-blend-mask.png'], 'image/png'),
-    };
+    const furnitureImages: Record<string, string> = {};
+    const furnitureLabels: Record<string, string> = {};
+    for (const kind of getFurnitureKinds()) {
+      furnitureImages[kind] = this.getWebviewUri(webview, getFurnitureAssetPath(kind));
+      furnitureLabels[kind] = getFurnitureLabel(kind);
+    }
 
-    const assetPayload = this.serializeForInlineScript({ petMarkup, effectMarkup });
+    const roomLayout = getRoomLayoutConfig();
+    const floorTile = this.getWebviewUri(webview, getFloorTileAssetPath(roomLayout.floor));
+    const maskPath = getFloorTileMaskPath(roomLayout.floor);
+    const floorTileMask = maskPath ? this.getWebviewUri(webview, maskPath) : '';
+
+    const assetPayload = this.serializeForInlineScript({
+      petMarkup,
+      allPetMarkup,
+      effectMarkup,
+      furnitureImages,
+      furnitureLabels,
+      floorTile,
+      floorTileMask,
+      roomLayout,
+    });
 
     return `<!DOCTYPE html>
 <html lang="zh-CN">
@@ -101,15 +125,7 @@ export class EdenDockProvider implements vscode.WebviewViewProvider {
     <link rel="stylesheet" href="${styleUri}" />
     <title>底部乐园</title>
   </head>
-  <body
-    data-asset-piano="${furnitureData.piano}"
-    data-asset-bench="${furnitureData.bench}"
-    data-asset-tree="${furnitureData.tree}"
-    data-asset-lamp="${furnitureData.lamp}"
-    data-asset-grass="${furnitureData.grass}"
-    data-summer-floor-tiles="${summerData.floorTiles}"
-    data-summer-floor-blend-mask="${summerData.floorBlendMask}"
-  >
+  <body>
     <script id="eden-assets" type="application/json">${assetPayload}</script>
     <main class="dock-app">
       <header class="dock-header dock-toolbar">
@@ -161,16 +177,10 @@ export class EdenDockProvider implements vscode.WebviewViewProvider {
     return fs.readFileSync(filePath, 'utf8').replace(/^<\?xml[^>]*>\s*/i, '');
   }
 
-  private getInlineSvgDataUri(pathSegments: readonly string[]): string {
-    const filePath = vscode.Uri.joinPath(this.extensionUri, 'media', ...pathSegments).fsPath;
-    const svg = fs.readFileSync(filePath, 'utf8');
-    return `data:image/svg+xml;base64,${Buffer.from(svg, 'utf8').toString('base64')}`;
-  }
-
-  private getInlineBinaryDataUri(pathSegments: readonly string[], mimeType: string): string {
-    const filePath = vscode.Uri.joinPath(this.extensionUri, 'media', ...pathSegments).fsPath;
-    const content = fs.readFileSync(filePath);
-    return `data:${mimeType};base64,${content.toString('base64')}`;
+  private getWebviewUri(webview: vscode.Webview, pathSegments: readonly string[]): string {
+    return webview.asWebviewUri(
+      vscode.Uri.joinPath(this.extensionUri, 'media', ...pathSegments),
+    ).toString();
   }
 
   private serializeForInlineScript(value: unknown): string {

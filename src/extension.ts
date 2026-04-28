@@ -1,10 +1,15 @@
 ﻿import * as vscode from 'vscode';
 
-import { SHOP_ITEMS } from './catalog';
 import { debounce } from './debounce';
 import { DockMessage, EdenDockProvider } from './dockProvider';
-import { getFurnitureAssetFile, getFurnitureLabel } from './furniture';
 import { getPetAssetUri } from './mediaPaths';
+import {
+  getFurnitureKinds,
+  getFurnitureDefinition,
+  getFurnitureLabel,
+  getFurnitureAssetPath,
+  getShopItemsFromConfig,
+} from './roomConfig';
 import {
   getGrowthStage,
   PET_LINEAGES,
@@ -84,13 +89,6 @@ const FURNITURE_FLOAT_OFFSET_X = 98;
 const FURNITURE_OPACITY = '0.74';
 const PET_ANIMATION_INTERVAL_MS = 320;
 
-const FURNITURE_ICON_SIZES: Readonly<Record<FurnitureKind, number>> = {
-  piano: 30,
-  bench: 26,
-  tree: 30,
-  lamp: 24,
-  grass: 26,
-};
 
 class EdenController implements vscode.Disposable {
   private readonly disposables: vscode.Disposable[] = [];
@@ -100,7 +98,7 @@ class EdenController implements vscode.Disposable {
   private readonly dockProvider: EdenDockProvider;
   private petDecorations: Record<PetMood, readonly vscode.TextEditorDecorationType[]>;
   private currentPetDecorationSignature = '';
-  private readonly furnitureDecorations: Record<FurnitureKind, vscode.TextEditorDecorationType>;
+  private readonly furnitureDecorations: Map<FurnitureKind, vscode.TextEditorDecorationType>;
   private readonly statusBarItem: vscode.StatusBarItem;
 
   private workingAnimationTimer: NodeJS.Timeout | undefined;
@@ -131,20 +129,16 @@ class EdenController implements vscode.Disposable {
     }, debounceMs);
 
     this.petDecorations = this.createAllPetDecorations(this.stateStore.getState().editorPetScale);
-    this.furnitureDecorations = {
-      piano: this.createFurnitureDecoration('piano'),
-      bench: this.createFurnitureDecoration('bench'),
-      tree: this.createFurnitureDecoration('tree'),
-      lamp: this.createFurnitureDecoration('lamp'),
-      grass: this.createFurnitureDecoration('grass'),
-    };
+    this.furnitureDecorations = new Map(
+      getFurnitureKinds().map((kind) => [kind, this.createFurnitureDecoration(kind)]),
+    );
     this.statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
     this.statusBarItem.text = '$(symbol-misc) Gopher 底部乐园';
     this.statusBarItem.tooltip = '真正的拖拽和互动都放在底部乐园里完成';
     this.statusBarItem.command = 'gophersEden.openDock';
 
     this.disposables.push(
-      ...Object.values(this.furnitureDecorations),
+      ...this.furnitureDecorations.values(),
       this.statusBarItem,
     );
   }
@@ -455,7 +449,7 @@ class EdenController implements vscode.Disposable {
       const stage = getGrowthStage(this.stateStore.getState().growthPoints);
       await this.stateStore.purchaseItem(kind);
       await this.stateStore.addGrowthPoints(stage.growthProfile.purchaseGain);
-      const item = SHOP_ITEMS.find((entry) => entry.kind === kind);
+      const item = getShopItemsFromConfig().find((entry) => entry.kind === kind);
       if (item) {
         this.showPetEffect('sparkle');
         void vscode.window.setStatusBarMessage(
@@ -1089,7 +1083,7 @@ class EdenController implements vscode.Disposable {
       editorPet: toEditorPetUiState(state, target, this.dockVisible),
       growth: this.buildGrowthUiState(state),
       petVisual: this.buildPetVisualUiState(state),
-      shopItems: SHOP_ITEMS,
+      shopItems: getShopItemsFromConfig(),
       petAnimationFrame: this.getPetAnimationFrame(state.petStatus),
       petEffect: this.petEffect,
       petEffectNonce: this.petEffectNonce,
@@ -1167,8 +1161,8 @@ class EdenController implements vscode.Disposable {
     }
 
     for (const [editor, perKind] of grouped.entries()) {
-      for (const kind of Object.keys(this.furnitureDecorations) as FurnitureKind[]) {
-        editor.setDecorations(this.furnitureDecorations[kind], perKind[kind] ?? []);
+      for (const [kind, decoration] of this.furnitureDecorations) {
+        editor.setDecorations(decoration, perKind[kind] ?? []);
       }
     }
   }
@@ -1423,10 +1417,12 @@ class EdenController implements vscode.Disposable {
   }
 
   private createFurnitureDecoration(kind: FurnitureKind): vscode.TextEditorDecorationType {
-    const size = FURNITURE_ICON_SIZES[kind];
+    const def = getFurnitureDefinition(kind);
+    const size = def.editorSize ?? 28;
+    const assetSegments = getFurnitureAssetPath(kind);
     return vscode.window.createTextEditorDecorationType({
       after: {
-        contentIconPath: vscode.Uri.joinPath(this.context.extensionUri, 'media', 'furniture', 'default', getFurnitureAssetFile(kind)),
+        contentIconPath: vscode.Uri.joinPath(this.context.extensionUri, 'media', ...assetSegments),
         width: `${size}px`,
         height: `${size}px`,
         margin: `0 0 0 ${FURNITURE_BASE_OFFSET_X}px`,
@@ -1640,10 +1636,10 @@ function clearPetDecorations(
 
 function clearFurnitureDecorations(
   editor: vscode.TextEditor,
-  furnitureDecorations: Record<FurnitureKind, vscode.TextEditorDecorationType>,
+  furnitureDecorations: Map<FurnitureKind, vscode.TextEditorDecorationType>,
 ): void {
   const empty: vscode.DecorationOptions[] = [];
-  for (const decoration of Object.values(furnitureDecorations)) {
+  for (const decoration of furnitureDecorations.values()) {
     editor.setDecorations(decoration, empty);
   }
 }

@@ -2,6 +2,7 @@
 
 import { getGrowthStage } from './petConfig';
 import { SHOP_ITEMS, getShopItem } from './catalog';
+import { isKnownFurnitureKind } from './roomConfig';
 import {
   EdenState,
   EdenTheme,
@@ -552,7 +553,7 @@ function isPetLineage(value: unknown): value is PetLineage {
 }
 
 function isFurnitureKind(value: unknown): value is FurnitureKind {
-  return value === 'piano' || value === 'bench' || value === 'tree' || value === 'lamp' || value === 'grass';
+  return isKnownFurnitureKind(value);
 }
 
 function isFurnitureAnchorType(value: unknown): value is FurnitureAnchorType {

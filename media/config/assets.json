@@ -1,0 +1,86 @@
+{
+  "decorations": {
+    "piano": {
+      "label": "像素钢琴",
+      "description": "一架暖木色的小钢琴，让底部乐园立刻有了安静又温柔的节奏。",
+      "path": "furniture/default/piano.svg",
+      "width": 64,
+      "height": 48,
+      "editorSize": 30,
+      "shop": {
+        "priceBricks": 5,
+        "priceDew": 0
+      }
+    },
+    "bench": {
+      "label": "小木椅",
+      "description": "适合让宠物歇脚的小木椅，也适合给你的灵感留一个座位。",
+      "path": "furniture/default/bench.svg",
+      "width": 56,
+      "height": 40,
+      "editorSize": 26,
+      "shop": {
+        "priceBricks": 3,
+        "priceDew": 0
+      }
+    },
+    "tree": {
+      "label": "像素盆栽",
+      "description": "柔软的绿色会让伊甸园多一点呼吸感，和宠物也更搭。",
+      "path": "furniture/default/tree.svg",
+      "width": 58,
+      "height": 58,
+      "editorSize": 30,
+      "shop": {
+        "priceBricks": 4,
+        "priceDew": 1
+      }
+    },
+    "lamp": {
+      "label": "复古台灯",
+      "description": "夜里写代码时，一盏像素台灯会让整个角落更像温暖的小屋。",
+      "path": "furniture/default/lamp.svg",
+      "width": 44,
+      "height": 52,
+      "editorSize": 24,
+      "shop": {
+        "priceBricks": 3,
+        "priceDew": 1
+      }
+    },
+    "grass": {
+      "label": "小游戏机",
+      "description": "一台迷你街机，给乐园留下一点轻松又俏皮的像素娱乐感。",
+      "path": "furniture/default/grass.svg",
+      "width": 52,
+      "height": 52,
+      "editorSize": 26,
+      "shop": {
+        "priceBricks": 4,
+        "priceDew": 1
+      }
+    }
+  },
+  "floorTiles": {
+    "tile_brown_square": {
+      "label": "嵌入式夏日方砖",
+      "path": "furniture/summer_limited/floor-tiles.png",
+      "maskPath": "furniture/summer_limited/floor-blend-mask.png",
+      "width": 32,
+      "height": 32
+    }
+  },
+  "daisyPot": {
+  "label": "像素雏菊盆栽",
+  "description": "一盆可爱的像素雏菊，能让你的乐园角落充满生机和活力。",
+  "path": "furniture/default/daisy_pot.png",
+  "width": 58,
+  "height": 64,
+  "editorSize": 28,
+  "shop": {
+    "priceBricks": 5,
+    "priceDew": 1
+  }
+}
+
+}
