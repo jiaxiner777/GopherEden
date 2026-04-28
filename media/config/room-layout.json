@@ -1,0 +1,31 @@
+{
+  "tileSize": 32,
+  "stage": {
+    "cols": 16,
+    "rows": 9,
+    "floorStartRow": 6,
+    "floorRows": 3
+  },
+  "theme": {
+    "wallColor": "#587692",
+    "wallStripeColor": "#6f8ba5",
+    "wallStripeWidth": 1,
+    "backdropColor": "#203349",
+    "trimColor": "#1a2736",
+    "window": {
+      "pos": [11, 1],
+      "size": [3, 2],
+      "frameColor": "#503724",
+      "glassColor": "#93d2ff",
+      "glowColor": "#f7dfa0"
+    },
+    "rug": {
+      "pos": [4, 6],
+      "size": [6, 1],
+      "color": "#b56d49",
+      "stripeColor": "#d99063"
+    }
+  },
+  "floor": "tile_brown_square",
+  "staticDecorations": []
+}

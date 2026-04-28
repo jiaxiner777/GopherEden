@@ -60,19 +60,20 @@
     'viewport-float': '代码区浮层',
   };
 
-  const labelCopy = {
-    piano: '像素钢琴',
-    bench: '小木椅',
-    tree: '像素盆栽',
-    lamp: '复古台灯',
-    grass: '小游戏机',
-  };
+  const labelCopy = edenAssets.furnitureLabels || {};
 
-  const petFrames = {
-    normal: [edenAssets.petMarkup?.normal1 || '', edenAssets.petMarkup?.normal2 || ''],
-    startled: [edenAssets.petMarkup?.alert1 || '', edenAssets.petMarkup?.alert2 || ''],
-    working: [edenAssets.petMarkup?.working1 || '', edenAssets.petMarkup?.working2 || ''],
-  };
+  const allPetMarkup = edenAssets.allPetMarkup || {};
+
+  function getPetFrames(lineage) {
+    const m = allPetMarkup[lineage] || edenAssets.petMarkup || {};
+    return {
+      normal: [m.normal1 || '', m.normal2 || ''],
+      startled: [m.alert1 || '', m.alert2 || ''],
+      working: [m.working1 || '', m.working2 || ''],
+    };
+  }
+
+  let petFrames = getPetFrames('primitives');
 
   const effectMarkup = {
     heart: edenAssets.effectMarkup?.heart || '',
@@ -80,16 +81,10 @@
     alert: edenAssets.effectMarkup?.alert || '',
   };
 
-  const furnitureImages = {
-    piano: body.dataset.assetPiano,
-    bench: body.dataset.assetBench,
-    tree: body.dataset.assetTree,
-    lamp: body.dataset.assetLamp,
-    grass: body.dataset.assetGrass,
-  };
+  const furnitureImages = edenAssets.furnitureImages || {};
   const summerImages = {
-    floorTiles: body.dataset.summerFloorTiles || '',
-    floorBlendMask: body.dataset.summerFloorBlendMask || '',
+    floorTiles: edenAssets.floorTile || '',
+    floorBlendMask: edenAssets.floorTileMask || '',
   };
 
   let latestViewState = null;
@@ -206,6 +201,7 @@
     body.classList.toggle('theme-cyber-oasis', state.theme === 'cyber-oasis');
     body.classList.toggle('theme-pixel-meadow', state.theme === 'pixel-meadow');
 
+    petFrames = getPetFrames(petVisual.lineage);
     applyPetVisual(petVisual, state.petStatus);
 
     if (petName) {

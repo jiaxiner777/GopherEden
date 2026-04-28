@@ -16,11 +16,18 @@
   const dockLineageChip = document.getElementById('dock-lineage-chip');
   const dockStageChip = document.getElementById('dock-stage-chip');
 
-  const petFrames = {
-    normal: [edenAssets.petMarkup?.normal1 || '', edenAssets.petMarkup?.normal2 || ''],
-    startled: [edenAssets.petMarkup?.alert1 || '', edenAssets.petMarkup?.alert2 || ''],
-    working: [edenAssets.petMarkup?.working1 || '', edenAssets.petMarkup?.working2 || ''],
-  };
+  const allPetMarkup = edenAssets.allPetMarkup || {};
+
+  function getPetFrames(lineage) {
+    const m = allPetMarkup[lineage] || edenAssets.petMarkup || {};
+    return {
+      normal: [m.normal1 || '', m.normal2 || ''],
+      startled: [m.alert1 || '', m.alert2 || ''],
+      working: [m.working1 || '', m.working2 || ''],
+    };
+  }
+
+  let petFrames = getPetFrames('primitives');
 
   const effectMarkup = {
     heart: edenAssets.effectMarkup?.heart || '',
@@ -28,34 +35,19 @@
     alert: edenAssets.effectMarkup?.alert || '',
   };
 
-  const furnitureImages = {
-    piano: body.dataset.assetPiano,
-    bench: body.dataset.assetBench,
-    tree: body.dataset.assetTree,
-    lamp: body.dataset.assetLamp,
-    grass: body.dataset.assetGrass,
-  };
-  const summerFloorTiles = body.dataset.summerFloorTiles || '';
-  const summerFloorBlendMask = body.dataset.summerFloorBlendMask || '';
-
-  const labelCopy = {
-    piano: '像素钢琴',
-    bench: '小木椅',
-    tree: '像素盆栽',
-    lamp: '复古台灯',
-    grass: '小游戏机',
-  };
+  const furnitureImages = edenAssets.furnitureImages || {};
+  const labelCopy = edenAssets.furnitureLabels || {};
+  const roomLayout = edenAssets.roomLayout || null;
+  const floorTile = edenAssets.floorTile || '';
+  const floorTileMask = edenAssets.floorTileMask || '';
 
   let latestViewState = null;
   let dragSession = null;
   let manageOpen = false;
   let lastEffectNonce = 0;
 
-  if (summerFloorTiles) {
-    body.style.setProperty('--summer-floor-tiles', `url("${summerFloorTiles}")`);
-  }
-  if (summerFloorBlendMask) {
-    body.style.setProperty('--summer-floor-mask', `url("${summerFloorBlendMask}")`);
+  if (roomLayout) {
+    initRoomLayout(roomLayout, floorTile, floorTileMask);
   }
 
   document.addEventListener('click', (event) => {
@@ -145,6 +137,7 @@
     const editorPet = latestViewState.editorPet;
     const dockPlacements = (state.placedFurniture || []).filter((placement) => placement.anchorType === 'dock');
     const visual = latestViewState.petVisual;
+    petFrames = getPetFrames(visual.lineage);
 
     entities.innerHTML = '';
     body.dataset.lineage = visual.lineage;
@@ -169,6 +162,7 @@
     pet.className = `entity pet pet-status-${state.petStatus} lineage-${visual.lineage} stage-${visual.stageId}`;
     pet.dataset.entity = 'pet';
     pet.dataset.id = 'pet';
+    pet.style.zIndex = '2';
     pet.style.setProperty('--pet-scale', String(visual.dockScale));
     pet.style.setProperty('--pet-filter', visual.dockFilter);
     pet.style.setProperty('--pet-accent', visual.accentColor);
@@ -202,11 +196,12 @@
       furniture.className = `entity furniture ${placement.kind}`;
       furniture.dataset.entity = 'furniture';
       furniture.dataset.id = placement.id;
+      furniture.style.zIndex = '1';
       applyPosition(furniture, placement);
 
       const image = document.createElement('img');
       image.alt = labelCopy[placement.kind] || placement.kind;
-      image.src = furnitureImages[placement.kind];
+      image.src = furnitureImages[placement.kind] || '';
       furniture.appendChild(image);
       entities.appendChild(furniture);
     });
@@ -219,9 +214,9 @@
       dockList.innerHTML = dockPlacements.map((placement) => `
         <article class="dock-card">
           <div class="dock-card-main">
-            <img src="${furnitureImages[placement.kind]}" alt="${labelCopy[placement.kind]}" class="item-icon" />
+            <img src="${furnitureImages[placement.kind] || ''}" alt="${labelCopy[placement.kind] || placement.kind}" class="item-icon" />
             <div>
-              <strong>${labelCopy[placement.kind]}</strong>
+              <strong>${labelCopy[placement.kind] || placement.kind}</strong>
               <p class="dock-copy">这里可以直接拖动位置，也可以切回代码区的跟行或浮层投影。</p>
             </div>
           </div>
@@ -236,6 +231,57 @@
     }
 
     renderManageState();
+  }
+
+  function initRoomLayout(config, floorTileDataUri, floorTileMaskUri) {
+    if (!stage) {
+      return;
+    }
+
+    const grid = config.stage;
+    const theme = config.theme;
+    const wallRatio = grid.floorStartRow / grid.rows;
+    const floorRatio = grid.floorRows / grid.rows;
+
+    stage.style.setProperty('--wall-color', theme.wallColor);
+    stage.style.setProperty('--wall-stripe-color', theme.wallStripeColor);
+    stage.style.setProperty('--backdrop-color', theme.backdropColor || theme.wallColor);
+    stage.style.setProperty('--trim-color', theme.trimColor || 'transparent');
+    stage.style.setProperty('--wall-ratio', String(wallRatio));
+    stage.style.setProperty('--floor-ratio', String(floorRatio));
+    stage.style.setProperty('--grid-cols', String(grid.cols));
+    stage.style.setProperty('--floor-rows', String(grid.floorRows));
+
+    if (floorTileDataUri) {
+      stage.style.setProperty('--floor-tile', `url("${floorTileDataUri}")`);
+    }
+    if (floorTileMaskUri) {
+      stage.style.setProperty('--floor-tile-mask', `url("${floorTileMaskUri}")`);
+    }
+
+    const win = theme.window;
+    const windowEl = stage.querySelector('.window-glow');
+    if (windowEl instanceof HTMLElement) {
+      windowEl.style.left = `${win.pos[0] / grid.cols * 100}%`;
+      windowEl.style.top = `${win.pos[1] / grid.rows * 100}%`;
+      windowEl.style.width = `${win.size[0] / grid.cols * 100}%`;
+      windowEl.style.height = `${win.size[1] / grid.rows * 100}%`;
+      windowEl.style.setProperty('--window-frame', win.frameColor);
+      windowEl.style.setProperty('--window-glass', win.glassColor);
+    }
+
+    if (theme.rug) {
+      const rug = theme.rug;
+      const rugEl = stage.querySelector('.rug');
+      if (rugEl instanceof HTMLElement) {
+        rugEl.style.left = `${rug.pos[0] / grid.cols * 100}%`;
+        rugEl.style.top = `${rug.pos[1] / grid.rows * 100}%`;
+        rugEl.style.width = `${rug.size[0] / grid.cols * 100}%`;
+        rugEl.style.height = `${rug.size[1] / grid.rows * 100}%`;
+        rugEl.style.setProperty('--rug-color', rug.color);
+        rugEl.style.setProperty('--rug-stripe', rug.stripeColor);
+      }
+    }
   }
 
   function decoratePetReaction(host, effect) {

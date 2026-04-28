@@ -369,7 +369,9 @@ h2 {
   background: transparent;
 }
 
-.action-button:disabled {
+.action-button:disabled,
+.mini-button:disabled,
+.mini-button.is-disabled {
   opacity: 0.48;
   cursor: not-allowed;
 }
