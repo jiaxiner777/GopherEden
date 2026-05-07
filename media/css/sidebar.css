@@ -520,55 +520,139 @@ h2 {
 }
 
 .seasonal-showcase {
+  --seasonal-paper: #f3e6c4;
+  --seasonal-paper-shade: #e8d59c;
+  --seasonal-paper-edge: #b89764;
+  --seasonal-ink: #5b3f1e;
+  --seasonal-ink-soft: #8a6a3e;
+  --seasonal-wood-light: #c4986a;
+  --seasonal-wood-dark: #8a5e34;
+  --seasonal-wood-frame: #5d3b1a;
+  --seasonal-pixel-font: 'Zpix', 'Cubic 11', 'Ark Pixel 12px Proportional zh_cn',
+    'Fusion Pixel 12px Proportional zh_hans', 'Fusion Pixel 12px Proportional',
+    var(--vscode-editor-font-family, Consolas), 'Microsoft YaHei', monospace;
+
   margin-top: 10px;
-  padding: 10px;
-  border-radius: 8px;
-  background: linear-gradient(180deg, rgba(255, 245, 228, 0.08), rgba(255, 214, 153, 0.04));
-  border: 1px solid rgba(255, 210, 148, 0.18);
+  padding: 10px 10px 10px;
+  border-radius: 4px;
+  color: var(--seasonal-ink);
+  background-color: var(--seasonal-paper);
+  background-image:
+    /* tiny dotted paper grain */
+    radial-gradient(rgba(120, 88, 44, 0.10) 1px, transparent 1px),
+    /* soft horizontal banding */
+    repeating-linear-gradient(
+      0deg,
+      rgba(180, 140, 80, 0.05) 0 2px,
+      transparent 2px 6px
+    ),
+    /* warm vignette */
+    linear-gradient(180deg, rgba(255, 248, 220, 0.6), rgba(216, 184, 124, 0.25));
+  background-size: 4px 4px, auto, auto;
+  border: 1px solid var(--seasonal-paper-edge);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 248, 220, 0.7),
+    inset 0 0 18px rgba(120, 88, 44, 0.18),
+    0 2px 0 rgba(120, 88, 44, 0.18);
+  image-rendering: pixelated;
 }
 
-.seasonal-showcase-header {
+body.theme-pixel-meadow .seasonal-showcase {
+  background-color: #f7ecd1;
+}
+
+.seasonal-banner {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.seasonal-banner-icon {
+  width: 32px;
+  height: 32px;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 1px 0 rgba(120, 80, 30, 0.35));
+}
+
+/* small wooden plank sign */
+.seasonal-sign {
+  position: relative;
+  padding: 5px 14px 6px;
+  background:
+    linear-gradient(180deg, var(--seasonal-wood-light) 0%, var(--seasonal-wood-light) 50%, var(--seasonal-wood-dark) 50%, var(--seasonal-wood-dark) 100%);
+  background-size: 100% 4px;
+  background-repeat: repeat-y;
+  background-color: var(--seasonal-wood-light);
+  border: 1px solid var(--seasonal-wood-frame);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 230, 190, 0.55),
+    inset 0 -1px 0 rgba(60, 32, 10, 0.4),
+    0 1px 0 rgba(60, 32, 10, 0.35);
+  border-radius: 2px;
+}
+
+/* nail pegs at top corners */
+.seasonal-sign::before,
+.seasonal-sign::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  width: 2px;
+  height: 2px;
+  background: #3a2410;
+  box-shadow: 0 -1px 0 #2a1a09, 1px 0 0 rgba(255, 230, 190, 0.4);
+}
+
+.seasonal-sign::before { left: 4px; }
+.seasonal-sign::after  { right: 4px; }
+
+.seasonal-sign-text {
+  font-family: var(--seasonal-pixel-font);
+  font-size: 11px;
+  line-height: 1;
+  letter-spacing: 0.12em;
+  font-weight: 400;
+  color: #fff3d2;
+  text-shadow: 1px 1px 0 #4a2a0c;
 }
 
 .seasonal-showcase-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-  margin-top: 10px;
+  gap: 6px;
+  margin-top: 0;
 }
 
 .seasonal-card {
-  padding: 10px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.06);
-  display: grid;
-  gap: 8px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 6px;
+  background: rgba(255, 248, 220, 0.55);
+  border: 1px solid rgba(138, 106, 62, 0.32);
+  border-radius: 3px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    inset 0 -1px 0 rgba(120, 88, 44, 0.18);
 }
 
-.seasonal-preview {
-  --seasonal-preview-image: none;
-  height: 92px;
-  border-radius: 8px;
-  border: 1px solid rgba(71, 49, 32, 0.3);
+.seasonal-mini-icon {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
   image-rendering: pixelated;
+  filter: drop-shadow(0 1px 0 rgba(120, 80, 30, 0.25));
 }
 
-.seasonal-floor-preview {
-  background:
-    var(--seasonal-preview-image) center/32px 32px repeat,
-    linear-gradient(180deg, rgba(255, 255, 255, 0.1), transparent);
-}
-
-.seasonal-mask-preview {
-  background:
-    radial-gradient(circle at center, transparent 0 28px, rgba(39, 31, 24, 0.18) 28px 100%),
-    linear-gradient(180deg, rgba(255, 248, 235, 0.75), rgba(211, 181, 145, 0.75)),
-    var(--seasonal-preview-image) center/32px 32px no-repeat,
-    linear-gradient(180deg, #d4bc9c, #b28b63);
+.seasonal-mini-label {
+  font-family: var(--seasonal-pixel-font);
+  font-size: 10px;
+  line-height: 1.1;
+  letter-spacing: 0.04em;
+  font-weight: 400;
+  color: var(--seasonal-ink);
 }
 
 @keyframes petIdleFloat {

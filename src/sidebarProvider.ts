@@ -4,6 +4,7 @@ import * as vscode from 'vscode';
 import {
   getPetAssetPath,
   getPetEffectAssetPath,
+  getUiAssetPath,
   getWebviewScriptUri,
   getWebviewStyleUri,
 } from './mediaPaths';
@@ -98,6 +99,10 @@ export class EdenSidebarProvider implements vscode.WebviewViewProvider {
     const floorTile = this.getWebviewUri(webview, getFloorTileAssetPath(roomLayout.floor));
     const maskPath = getFloorTileMaskPath(roomLayout.floor);
     const floorTileMask = maskPath ? this.getWebviewUri(webview, maskPath) : '';
+
+    const seasonalSunIcon = this.getWebviewUri(webview, getUiAssetPath('seasonal-sun.svg'));
+    const seasonalFloorIcon = this.getWebviewUri(webview, getUiAssetPath('seasonal-floor-tile.svg'));
+    const seasonalMaskIcon = this.getWebviewUri(webview, getUiAssetPath('seasonal-blend-mask.svg'));
 
     const assetPayload = this.serializeForInlineScript({
       petMarkup,
@@ -288,25 +293,20 @@ export class EdenSidebarProvider implements vscode.WebviewViewProvider {
         <div class="fold-body is-hidden" data-section-body="shop">
           <div id="shop-list" class="shop-list"></div>
           <section class="seasonal-showcase">
-            <div class="seasonal-showcase-header">
-              <strong>夏季限定装修 uu</strong>
-              <span class="panel-badge">Summer Limited</span>
+            <div class="seasonal-banner">
+              <img class="seasonal-banner-icon" src="${seasonalSunIcon}" alt="夏" width="32" height="32" />
+              <div class="seasonal-sign" role="img" aria-label="夏季限定">
+                <span class="seasonal-sign-text">夏季限定</span>
+              </div>
             </div>
-            <p class="helper-copy">这套主题已经接入当前插件商店。地板采用 1px 深色砖缝、左上高光、右下阴影的 Floor Tiles 结构，并附带中心透明的融合边框素材，方便贴合花盆和家具边缘。</p>
             <div class="seasonal-showcase-grid">
               <article class="seasonal-card">
-                <div class="seasonal-preview seasonal-floor-preview" data-summer-preview="floorTiles"></div>
-                <div class="shop-copy">
-                  <strong>Floor Tiles / 地板瓦片</strong>
-                  <small>自带砖缝边框和伪 3D 光影，拼接后会有嵌入式网格感。</small>
-                </div>
+                <img class="seasonal-mini-icon" src="${seasonalFloorIcon}" alt="" width="16" height="16" />
+                <span class="seasonal-mini-label">地板瓦片</span>
               </article>
               <article class="seasonal-card">
-                <div class="seasonal-preview seasonal-mask-preview" data-summer-preview="floorBlendMask"></div>
-                <div class="shop-copy">
-                  <strong>Floor Blend Mask / 融合边框</strong>
-                  <small>中心透明，只保留边缘高光与阴影，用来把家具底边压进地板里。</small>
-                </div>
+                <img class="seasonal-mini-icon" src="${seasonalMaskIcon}" alt="" width="16" height="16" />
+                <span class="seasonal-mini-label">融合边框</span>
               </article>
             </div>
           </section>

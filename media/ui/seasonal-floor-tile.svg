@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" shape-rendering="crispEdges">
+  <!-- outer dark seam -->
+  <rect x="0" y="0" width="16" height="16" fill="#5e3a18"/>
+  <!-- wood base -->
+  <rect x="1" y="1" width="14" height="14" fill="#a87144"/>
+  <!-- top + left highlight -->
+  <rect x="1" y="1" width="14" height="1" fill="#d59c69"/>
+  <rect x="1" y="2" width="1" height="12" fill="#d59c69"/>
+  <!-- bottom + right shadow -->
+  <rect x="1" y="14" width="14" height="1" fill="#7c4a22"/>
+  <rect x="14" y="2" width="1" height="13" fill="#7c4a22"/>
+  <!-- wood grain lines -->
+  <rect x="3" y="4" width="6" height="1" fill="#8d5a2c"/>
+  <rect x="2" y="8" width="9" height="1" fill="#8d5a2c"/>
+  <rect x="6" y="11" width="5" height="1" fill="#8d5a2c"/>
+  <!-- knot dot -->
+  <rect x="12" y="6" width="1" height="1" fill="#5e3a16"/>
+  <rect x="3" y="12" width="1" height="1" fill="#5e3a16"/>
+</svg>
