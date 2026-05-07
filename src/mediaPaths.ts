@@ -38,6 +38,10 @@ export function getActivityIconPath(fileName: string): string {
   return ['media', ...UI_ASSET_DIRECTORY, fileName].join('/');
 }
 
+export function getUiAssetPath(fileName: string): readonly string[] {
+  return [...UI_ASSET_DIRECTORY, fileName];
+}
+
 export function getReadmeMediaPath(fileName: string): string {
   return ['media', 'docs', fileName].join('/');
 }

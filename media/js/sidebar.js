@@ -82,10 +82,6 @@
   };
 
   const furnitureImages = edenAssets.furnitureImages || {};
-  const summerImages = {
-    floorTiles: edenAssets.floorTile || '',
-    floorBlendMask: edenAssets.floorTileMask || '',
-  };
 
   let latestViewState = null;
   let selectedInventoryKind = null;
@@ -471,19 +467,4 @@
   }
 
   vscode.postMessage({ type: 'ready' });
-
-  document.querySelectorAll('[data-summer-preview]').forEach((node) => {
-    if (!(node instanceof HTMLElement)) {
-      return;
-    }
-    const key = node.dataset.summerPreview;
-    if (!key) {
-      return;
-    }
-    const asset = summerImages[key];
-    if (!asset) {
-      return;
-    }
-    node.style.setProperty('--seasonal-preview-image', `url("${asset}")`);
-  });
 })();
