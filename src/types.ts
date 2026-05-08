@@ -8,6 +8,8 @@ export type PetEffectKind = 'heart' | 'sparkle' | 'alert';
 
 export type FurnitureKind = string;
 
+export type FurniturePlacementType = 'floor' | 'wall';
+
 export type FurnitureAnchorType = 'line-bind' | 'viewport-float' | 'dock';
 
 export interface HabitatPoint {
@@ -32,6 +34,7 @@ export interface ShopItem {
   readonly kind: FurnitureKind;
   readonly name: string;
   readonly description: string;
+  readonly placementType: FurniturePlacementType;
   readonly priceBricks: number;
   readonly priceDew: number;
 }

@@ -62,7 +62,14 @@
     'viewport-float': '代码区浮层',
   };
 
+  const placementCopy = {
+    floor: '地面摆放',
+    wall: '墙面挂载',
+  };
+
   const labelCopy = edenAssets.furnitureLabels || {};
+  const furniturePlacementTypes = edenAssets.furniturePlacementTypes || {};
+  const placeButtons = Array.from(document.querySelectorAll('[data-place-anchor]'));
 
   const allPetMarkup = edenAssets.allPetMarkup || {};
 
@@ -367,6 +374,52 @@
     });
   }
 
+  function getPlacementType(kind) {
+    return furniturePlacementTypes[kind] === 'wall' ? 'wall' : 'floor';
+  }
+
+  function getPlacementLabel(kind) {
+    return placementCopy[getPlacementType(kind)] || placementCopy.floor;
+  }
+
+  function getPlacementBadgeMarkup(kind) {
+    const placementType = getPlacementType(kind);
+    if (placementType === 'wall') {
+      return `
+        <span class="placement-pill placement-pill-wall" title="墙面挂载">
+          <svg viewBox="0 0 16 16" aria-hidden="true">
+            <path d="M6 2h4v2H8v4.5a2.5 2.5 0 1 0 2.5 2.5H9a1 1 0 1 1-1 1V4H6z" fill="currentColor"></path>
+          </svg>
+          墙挂
+        </span>
+      `;
+    }
+
+    return '<span class="placement-pill placement-pill-floor">落地</span>';
+  }
+
+  function updatePlacementButtons(kind) {
+    const wallMounted = getPlacementType(kind) === 'wall';
+    placeButtons.forEach((button) => {
+      if (!(button instanceof HTMLButtonElement)) {
+        return;
+      }
+      switch (button.dataset.placeAnchor) {
+        case 'line-bind':
+          button.textContent = wallMounted ? '挂到代码区 · 跟行' : '摆到代码区 · 跟行';
+          break;
+        case 'viewport-float':
+          button.textContent = wallMounted ? '挂到代码区 · 浮层' : '摆到代码区 · 浮层';
+          break;
+        case 'dock':
+          button.textContent = wallMounted ? '挂到底部乐园' : '摆到底部乐园';
+          break;
+        default:
+          break;
+      }
+    });
+  }
+
   function renderInventory(entries) {
     if (!inventoryList || !inventoryEmpty || !inventoryActions || !inventorySummary) {
       return;
@@ -385,8 +438,11 @@
       button.innerHTML = `
         <span class="inventory-icon"><img src="${furnitureImages[entry.kind] || ''}" alt="${labelCopy[entry.kind]}" /></span>
         <span class="inventory-copy">
-          <strong>${labelCopy[entry.kind]}</strong>
-          <small>库存 ${entry.count}</small>
+          <span class="item-title-row">
+            <strong>${labelCopy[entry.kind]}</strong>
+            ${getPlacementBadgeMarkup(entry.kind)}
+          </span>
+          <small>${getPlacementLabel(entry.kind)} · 库存 ${entry.count}</small>
         </span>
       `;
       inventoryList.appendChild(button);
@@ -394,9 +450,12 @@
 
     const activeEntry = available.find((entry) => entry.kind === selectedInventoryKind);
     inventoryActions.classList.toggle('is-hidden', !activeEntry);
+    if (activeEntry) {
+      updatePlacementButtons(activeEntry.kind);
+    }
     if (inventorySelected) {
       inventorySelected.textContent = activeEntry
-        ? `当前准备摆放：${labelCopy[activeEntry.kind]}。选择下面的落点方式即可。`
+        ? `当前准备${getPlacementType(activeEntry.kind) === 'wall' ? '挂载' : '摆放'}：${labelCopy[activeEntry.kind]}（${getPlacementLabel(activeEntry.kind)}）。选择下面的位置即可。`
         : '先选中一个想摆放的家具。';
     }
   }
@@ -416,8 +475,11 @@
       article.innerHTML = `
         <div class="placed-item-head">
           <div class="placed-item-copy">
-            <strong>${labelCopy[placement.kind]}</strong>
-            <small>${anchorCopy[placement.anchorType] || '未知位置'}</small>
+            <span class="item-title-row">
+              <strong>${labelCopy[placement.kind]}</strong>
+              ${getPlacementBadgeMarkup(placement.kind)}
+            </span>
+            <small>${getPlacementLabel(placement.kind)} · ${anchorCopy[placement.anchorType] || '未知位置'}</small>
           </div>
           <img class="placed-thumb" src="${furnitureImages[placement.kind] || ''}" alt="${labelCopy[placement.kind]}" />
         </div>
@@ -453,8 +515,11 @@
           <div class="placed-main">
             <img class="item-icon" src="${furnitureImages[item.kind] || ''}" alt="${item.name}" />
             <div class="shop-top">
-              <strong>${item.name}</strong>
-              <small>${item.description}</small>
+              <span class="item-title-row">
+                <strong>${item.name}</strong>
+                ${getPlacementBadgeMarkup(item.kind)}
+              </span>
+              <small>${getPlacementLabel(item.kind)} · ${item.description}</small>
             </div>
           </div>
           <div class="shop-bottom">

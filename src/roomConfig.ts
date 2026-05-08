@@ -1,11 +1,12 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
-import { FurnitureKind, ShopItem } from './types';
+import { FurnitureKind, FurniturePlacementType, ShopItem } from './types';
 
 export interface DecorationAssetConfig {
   readonly label: string;
   readonly description: string;
+  readonly placementType: FurniturePlacementType;
   readonly path: string;
   readonly width: number;
   readonly height: number;
@@ -121,6 +122,10 @@ export function getFurnitureLabel(kind: FurnitureKind): string {
   return getFurnitureDefinition(kind).label;
 }
 
+export function getFurniturePlacementType(kind: FurnitureKind): FurniturePlacementType {
+  return getFurnitureDefinition(kind).placementType;
+}
+
 export function getFurnitureAssetPath(kind: FurnitureKind): readonly string[] {
   return splitRelativePath(getFurnitureDefinition(kind).path);
 }
@@ -144,6 +149,7 @@ export function getShopItemsFromConfig(): readonly ShopItem[] {
         kind,
         name: definition.label,
         description: definition.description,
+        placementType: definition.placementType,
         priceBricks: definition.shop.priceBricks,
         priceDew: definition.shop.priceDew,
       } satisfies ShopItem;
@@ -160,6 +166,7 @@ export function getShopItemFromConfig(kind: FurnitureKind): ShopItem | undefined
     kind,
     name: def.label,
     description: def.description,
+    placementType: def.placementType,
     priceBricks: def.shop.priceBricks,
     priceDew: def.shop.priceDew,
   };
