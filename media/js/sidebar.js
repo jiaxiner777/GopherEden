@@ -420,25 +420,27 @@
     }
 
     shopList.innerHTML = '';
-    items.forEach((item) => {
-      const affordable = totalBricks >= item.priceBricks && inspirationDew >= item.priceDew;
-      const article = document.createElement('article');
-      article.className = 'shop-item';
-      article.innerHTML = `
-        <div class="shop-item-head">
-          <img class="shop-thumb" src="${furnitureImages[item.kind] || ''}" alt="${item.name}" />
-          <div class="shop-copy">
-            <strong>${item.name}</strong>
-            <small>${item.description}</small>
+    items
+      .filter((item) => item.kind !== 'flower')
+      .forEach((item) => {
+        const affordable = totalBricks >= item.priceBricks && inspirationDew >= item.priceDew;
+        const article = document.createElement('article');
+        article.className = `shop-card${affordable ? '' : ' is-disabled'}`;
+        article.innerHTML = `
+          <div class="placed-main">
+            <img class="item-icon" src="${furnitureImages[item.kind] || ''}" alt="${item.name}" />
+            <div class="shop-top">
+              <strong>${item.name}</strong>
+              <small>${item.description}</small>
+            </div>
           </div>
-        </div>
-        <div class="shop-item-foot">
-          <span class="price-tag">${item.priceBricks} 碎砖 / ${item.priceDew} 露珠</span>
-          <button class="mini-button${affordable ? '' : ' is-disabled'}" type="button" data-buy-kind="${item.kind}" ${affordable ? '' : 'disabled'}>购买</button>
-        </div>
-      `;
-      shopList.appendChild(article);
-    });
+          <div class="shop-bottom">
+            <span class="price-tag">${item.priceBricks} 碎砖 / ${item.priceDew} 露珠</span>
+            <button class="mini-button${affordable ? '' : ' is-disabled'}" type="button" data-buy-kind="${item.kind}" ${affordable ? '' : 'disabled'}>购买</button>
+          </div>
+        `;
+        shopList.appendChild(article);
+      });
   }
 
   function renderSections() {
