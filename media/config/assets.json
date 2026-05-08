@@ -3,6 +3,7 @@
     "piano": {
       "label": "像素钢琴",
       "description": "一架暖木色的小钢琴，让底部乐园立刻有了安静又温柔的节奏。",
+      "placementType": "floor",
       "path": "furniture/default/piano.svg",
       "width": 64,
       "height": 48,
@@ -15,6 +16,7 @@
     "bench": {
       "label": "小木椅",
       "description": "适合让宠物歇脚的小木椅，也适合给你的灵感留一个座位。",
+      "placementType": "floor",
       "path": "furniture/default/bench.svg",
       "width": 56,
       "height": 40,
@@ -27,6 +29,7 @@
     "tree": {
       "label": "像素盆栽",
       "description": "柔软的绿色会让伊甸园多一点呼吸感，和宠物也更搭。",
+      "placementType": "floor",
       "path": "furniture/default/tree.svg",
       "width": 58,
       "height": 58,
@@ -39,6 +42,7 @@
     "lamp": {
       "label": "复古台灯",
       "description": "夜里写代码时，一盏像素台灯会让整个角落更像温暖的小屋。",
+      "placementType": "floor",
       "path": "furniture/default/lamp.svg",
       "width": 44,
       "height": 52,
@@ -51,6 +55,7 @@
     "grass": {
       "label": "小游戏机",
       "description": "一台迷你街机，给乐园留下一点轻松又俏皮的像素娱乐感。",
+      "placementType": "floor",
       "path": "furniture/default/grass.svg",
       "width": 52,
       "height": 52,
@@ -63,6 +68,7 @@
     "daisyPot": {
       "label": "像素雏菊盆栽",
       "description": "一盆可爱的像素雏菊，能让你的乐园角落充满生机和活力。",
+      "placementType": "floor",
       "path": "furniture/default/daisy_pot.png",
       "width": 58,
       "height": 64,
@@ -75,6 +81,7 @@
     "flower": {
       "label": "像素小花",
       "description": "一朵简单的像素小花，放在角落里会有意想不到的温柔感。",
+      "placementType": "floor",
       "path": "furniture/default/flower.png",
       "width": 32,
       "height": 40,
@@ -82,6 +89,123 @@
       "shop": {
         "priceBricks": 2,
         "priceDew": 0
+      }
+    },
+    "rugRoundBraid": {
+      "label": "圆织地毯",
+      "description": "奶茶棕与亚麻米色交织的圆毯，能让木地板多一点柔软的停顿。",
+      "placementType": "floor",
+      "path": "furniture/default/rug_round_braid.svg",
+      "width": 72,
+      "height": 52,
+      "editorSize": 30,
+      "shop": {
+        "priceBricks": 4,
+        "priceDew": 1
+      }
+    },
+    "rugRunnerEarth": {
+      "label": "长条地毯",
+      "description": "带赭石与鼠尾草条纹的长毯，很适合铺在窗边或走道前。",
+      "placementType": "floor",
+      "path": "furniture/default/rug_runner_earth.svg",
+      "width": 74,
+      "height": 38,
+      "editorSize": 28,
+      "shop": {
+        "priceBricks": 4,
+        "priceDew": 0
+      }
+    },
+    "sofaSingleCozy": {
+      "label": "单人沙发",
+      "description": "带靠垫的小沙发像一个温暖代码角落，适合让乐园变得更像家。",
+      "placementType": "floor",
+      "path": "furniture/default/sofa_single_cozy.svg",
+      "width": 60,
+      "height": 56,
+      "editorSize": 29,
+      "shop": {
+        "priceBricks": 5,
+        "priceDew": 1
+      }
+    },
+    "codeBooksStack": {
+      "label": "代码书堆",
+      "description": "几本整齐叠放的厚书，像是被认真整理过的灵感和经验。",
+      "placementType": "floor",
+      "path": "furniture/default/code_books_stack.svg",
+      "width": 50,
+      "height": 42,
+      "editorSize": 24,
+      "shop": {
+        "priceBricks": 3,
+        "priceDew": 1
+      }
+    },
+    "coffeeMachineSteam": {
+      "label": "像素咖啡机",
+      "description": "会冒热气的小咖啡机，把每一次写代码前的仪式感都留在了房间里。",
+      "placementType": "floor",
+      "path": "furniture/default/coffee_machine_steam.svg",
+      "width": 46,
+      "height": 54,
+      "editorSize": 24,
+      "shop": {
+        "priceBricks": 4,
+        "priceDew": 2
+      }
+    },
+    "wallHangingPlanter": {
+      "label": "悬挂花盆",
+      "description": "藤蔓从小陶盆边缘垂下来，挂在墙上会让整面墙都更有呼吸感。",
+      "placementType": "wall",
+      "path": "furniture/default/wall_hanging_planter.svg",
+      "width": 42,
+      "height": 58,
+      "editorSize": 25,
+      "shop": {
+        "priceBricks": 4,
+        "priceDew": 1
+      }
+    },
+    "wallArtFrame": {
+      "label": "简易装饰画",
+      "description": "小木框里装着柔和的像素风景，能很快让墙面变得有故事。",
+      "placementType": "wall",
+      "path": "furniture/default/wall_art_frame.svg",
+      "width": 46,
+      "height": 40,
+      "editorSize": 23,
+      "shop": {
+        "priceBricks": 3,
+        "priceDew": 1
+      }
+    },
+    "wallClockRound": {
+      "label": "像素挂钟",
+      "description": "圆圆的木边挂钟很克制，但会给乐园多一点被认真生活过的感觉。",
+      "placementType": "wall",
+      "path": "furniture/default/wall_clock_round.svg",
+      "width": 40,
+      "height": 40,
+      "editorSize": 22,
+      "shop": {
+        "priceBricks": 3,
+        "priceDew": 1
+      }
+    },
+    "wallSconceGlow": {
+      "label": "暖光壁灯",
+      "description": "一盏带浅浅光晕的壁灯，会让傍晚色调的房间看起来更柔和。",
+      "placementType": "wall",
+      "path": "furniture/default/wall_sconce_glow.svg",
+      "width": 42,
+      "height": 52,
+      "editorSize": 24,
+      "shop": {
+        "priceBricks": 5,
+        "priceDew": 2
       }
     }
   },

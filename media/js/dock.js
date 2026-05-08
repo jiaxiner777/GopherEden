@@ -37,6 +37,7 @@
 
   const furnitureImages = edenAssets.furnitureImages || {};
   const labelCopy = edenAssets.furnitureLabels || {};
+  const furniturePlacementTypes = edenAssets.furniturePlacementTypes || {};
   const roomLayout = edenAssets.roomLayout || null;
   const roomVisuals = edenAssets.roomVisuals || null;
 
@@ -127,6 +128,29 @@
     render();
   });
 
+  function getPlacementType(kind) {
+    return furniturePlacementTypes[kind] === 'wall' ? 'wall' : 'floor';
+  }
+
+  function getPlacementLabel(kind) {
+    return getPlacementType(kind) === 'wall' ? '墙面挂载' : '地面摆放';
+  }
+
+  function getPlacementBadgeMarkup(kind) {
+    if (getPlacementType(kind) === 'wall') {
+      return `
+        <span class="placement-pill placement-pill-wall" title="墙面挂载">
+          <svg viewBox="0 0 16 16" aria-hidden="true">
+            <path d="M6 2h4v2H8v4.5a2.5 2.5 0 1 0 2.5 2.5H9a1 1 0 1 1-1 1V4H6z" fill="currentColor"></path>
+          </svg>
+          墙挂
+        </span>
+      `;
+    }
+
+    return '<span class="placement-pill placement-pill-floor">落地</span>';
+  }
+
   function render() {
     if (!latestViewState) {
       return;
@@ -192,9 +216,11 @@
 
     dockPlacements.forEach((placement) => {
       const furniture = document.createElement('div');
-      furniture.className = `entity furniture ${placement.kind}`;
+      const placementType = getPlacementType(placement.kind);
+      furniture.className = `entity furniture furniture-${placementType} ${placement.kind}`;
       furniture.dataset.entity = 'furniture';
       furniture.dataset.id = placement.id;
+      furniture.dataset.placementType = placementType;
       furniture.style.zIndex = '1';
       applyPosition(furniture, placement);
 
@@ -215,8 +241,11 @@
           <div class="dock-card-main">
             <img src="${furnitureImages[placement.kind] || ''}" alt="${labelCopy[placement.kind] || placement.kind}" class="item-icon" />
             <div>
-              <strong>${labelCopy[placement.kind] || placement.kind}</strong>
-              <p class="dock-copy">这里可以直接拖动位置，也可以切回代码区的跟行或浮层投影。</p>
+              <div class="item-title-row">
+                <strong>${labelCopy[placement.kind] || placement.kind}</strong>
+                ${getPlacementBadgeMarkup(placement.kind)}
+              </div>
+              <p class="dock-copy">${getPlacementLabel(placement.kind)} · 这里可以直接拖动位置，也可以切回代码区的跟行或浮层投影。</p>
             </div>
           </div>
           <div class="dock-actions">
@@ -400,10 +429,24 @@
     element.style.top = `${point.y * 100}%`;
   }
 
+  function getEntityBounds(element) {
+    if (!roomLayout || element.dataset.entity !== 'furniture') {
+      return { minX: 0.06, maxX: 0.96, minY: 0.2, maxY: 0.88 };
+    }
+
+    const wallRatio = roomLayout.stage.floorStartRow / roomLayout.stage.rows;
+    if (element.dataset.placementType === 'wall') {
+      return { minX: 0.08, maxX: 0.92, minY: 0.18, maxY: Math.max(0.3, wallRatio - 0.06) };
+    }
+
+    return { minX: 0.08, maxX: 0.92, minY: Math.min(0.76, wallRatio + 0.04), maxY: 0.88 };
+  }
+
   function updateEntityPosition(element, event) {
     const rect = stage.getBoundingClientRect();
-    const x = clamp((event.clientX - rect.left) / rect.width, 0.06, 0.96);
-    const y = clamp((event.clientY - rect.top) / rect.height, 0.2, 0.88);
+    const bounds = getEntityBounds(element);
+    const x = clamp((event.clientX - rect.left) / rect.width, bounds.minX, bounds.maxX);
+    const y = clamp((event.clientY - rect.top) / rect.height, bounds.minY, bounds.maxY);
     applyPosition(element, { x, y });
   }
 
@@ -419,8 +462,9 @@
     }
 
     entity.classList.remove('dragging');
-    const x = clamp(parseFloat(entity.style.left) / 100, 0.06, 0.96);
-    const y = clamp(parseFloat(entity.style.top) / 100, 0.2, 0.88);
+    const bounds = getEntityBounds(entity);
+    const x = clamp(parseFloat(entity.style.left) / 100, bounds.minX, bounds.maxX);
+    const y = clamp(parseFloat(entity.style.top) / 100, bounds.minY, bounds.maxY);
 
     if (dragSession.type === 'pet') {
       vscode.postMessage({ type: 'movePet', x, y });

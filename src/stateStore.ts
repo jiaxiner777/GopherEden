@@ -2,7 +2,7 @@
 
 import { getGrowthStage } from './petConfig';
 import { SHOP_ITEMS, getShopItem } from './catalog';
-import { isKnownFurnitureKind } from './roomConfig';
+import { getFurniturePlacementType, isKnownFurnitureKind } from './roomConfig';
 import {
   EdenState,
   EdenTheme,
@@ -153,15 +153,26 @@ export class EdenStateStore {
 
   public async placeFurnitureInDock(kind: FurnitureKind): Promise<EdenState> {
     this.ensureInventory(kind);
-    const dockCount = this.state.placedFurniture.filter((item) => item.anchorType === 'dock').length;
+
+    const placementType = getFurniturePlacementType(kind);
+    const dockCount = this.state.placedFurniture.filter(
+      (item) => item.anchorType === 'dock' && getFurniturePlacementType(item.kind) === placementType,
+    ).length;
+    const bounds = getPlacementBounds(kind, 'dock');
     const placement: PlacedFurniture = {
       id: `${kind}-${Date.now()}`,
       kind,
       anchorType: 'dock',
       documentUri: null,
       line: 0,
-      x: clamp(0.88 - dockCount * 0.12, 0.12, 0.92),
-      y: clamp(0.76 - (dockCount % 2) * 0.05, 0.18, 0.86),
+      x:
+        placementType === 'wall'
+          ? clamp(0.24 + (dockCount % 4) * 0.18, bounds.minX, bounds.maxX)
+          : clamp(0.88 - dockCount * 0.12, bounds.minX, bounds.maxX),
+      y:
+        placementType === 'wall'
+          ? clamp(0.28 + Math.floor(dockCount / 4) * 0.1, bounds.minY, bounds.maxY)
+          : clamp(0.76 - (dockCount % 2) * 0.05, bounds.minY, bounds.maxY),
     };
 
     return this.update({
@@ -184,8 +195,7 @@ export class EdenStateStore {
       anchorType,
       documentUri,
       line: Math.max(0, line),
-      x: anchorType === 'viewport-float' ? 0.86 : 0.82,
-      y: anchorType === 'viewport-float' ? 0.72 : 0.5,
+      ...sanitizePlacementPoint(kind, anchorType, undefined),
     };
 
     return this.update({
@@ -199,7 +209,7 @@ export class EdenStateStore {
       placement.id === id
         ? {
             ...placement,
-            ...sanitizePoint(position, placement),
+            ...sanitizePlacementPoint(placement.kind, placement.anchorType, position, placement),
           }
         : placement,
     );
@@ -215,8 +225,12 @@ export class EdenStateStore {
 
       return {
         ...placement,
-        x: clamp(placement.x + dx, 0.04, 0.96),
-        y: clamp(placement.y + dy, 0.08, 0.9),
+        ...sanitizePlacementPoint(
+          placement.kind,
+          placement.anchorType,
+          { x: placement.x + dx, y: placement.y + dy },
+          placement,
+        ),
       };
     });
 
@@ -258,13 +272,7 @@ export class EdenStateStore {
         anchorType,
         documentUri,
         line,
-        x: anchorType === 'dock' ? clamp(placement.x, 0.12, 0.92) : clamp(placement.x, 0.68, 0.96),
-        y:
-          anchorType === 'dock'
-            ? clamp(placement.y, 0.18, 0.86)
-            : anchorType === 'viewport-float'
-              ? clamp(placement.y, 0.16, 0.84)
-              : clamp(placement.y, 0.18, 0.82),
+        ...sanitizePlacementPoint(placement.kind, anchorType, placement),
       };
     });
 
@@ -485,7 +493,7 @@ function normalizePlacement(
           ? placement.documentUri
           : fallbackDocumentUri,
     line: anchorType === 'dock' ? 0 : Math.max(0, placement.line ?? fallbackLine),
-    ...sanitizePoint(placement, anchorType === 'dock' ? { x: 0.88, y: 0.78 } : { x: 0.84, y: 0.68 }),
+    ...sanitizePlacementPoint(placement.kind, anchorType, placement),
   };
 }
 
@@ -527,6 +535,46 @@ function addInventory(
       count: counts.get(item.kind) ?? 0,
     }))
     .filter((entry) => entry.count > 0);
+}
+
+function getPlacementBounds(kind: FurnitureKind, anchorType: FurnitureAnchorType): {
+  readonly minX: number;
+  readonly maxX: number;
+  readonly minY: number;
+  readonly maxY: number;
+  readonly defaultX: number;
+  readonly defaultY: number;
+} {
+  const placementType = getFurniturePlacementType(kind);
+
+  if (anchorType === 'dock') {
+    return placementType === 'wall'
+      ? { minX: 0.12, maxX: 0.92, minY: 0.18, maxY: 0.56, defaultX: 0.32, defaultY: 0.3 }
+      : { minX: 0.12, maxX: 0.92, minY: 0.58, maxY: 0.86, defaultX: 0.88, defaultY: 0.76 };
+  }
+
+  if (anchorType === 'viewport-float') {
+    return placementType === 'wall'
+      ? { minX: 0.68, maxX: 0.96, minY: 0.14, maxY: 0.54, defaultX: 0.82, defaultY: 0.34 }
+      : { minX: 0.68, maxX: 0.96, minY: 0.16, maxY: 0.84, defaultX: 0.86, defaultY: 0.72 };
+  }
+
+  return placementType === 'wall'
+    ? { minX: 0.68, maxX: 0.96, minY: 0.18, maxY: 0.6, defaultX: 0.82, defaultY: 0.28 }
+    : { minX: 0.68, maxX: 0.96, minY: 0.18, maxY: 0.82, defaultX: 0.82, defaultY: 0.5 };
+}
+
+function sanitizePlacementPoint(
+  kind: FurnitureKind,
+  anchorType: FurnitureAnchorType,
+  value: Partial<HabitatPoint> | undefined,
+  fallback?: HabitatPoint,
+): HabitatPoint {
+  const bounds = getPlacementBounds(kind, anchorType);
+  return {
+    x: clamp(typeof value?.x === 'number' ? value.x : fallback?.x ?? bounds.defaultX, bounds.minX, bounds.maxX),
+    y: clamp(typeof value?.y === 'number' ? value.y : fallback?.y ?? bounds.defaultY, bounds.minY, bounds.maxY),
+  };
 }
 
 function sanitizePoint(value: Partial<HabitatPoint> | undefined, fallback: HabitatPoint): HabitatPoint {

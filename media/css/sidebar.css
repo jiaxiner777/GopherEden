@@ -448,6 +448,41 @@ h2 {
   gap: 2px;
 }
 
+.item-title-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.placement-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  font-size: 10px;
+  line-height: 1;
+  font-weight: 700;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+}
+
+.placement-pill svg {
+  width: 10px;
+  height: 10px;
+  display: block;
+}
+
+.placement-pill-floor {
+  color: #6e5237;
+  background: rgba(232, 215, 186, 0.8);
+}
+
+.placement-pill-wall {
+  color: #5f4832;
+  background: rgba(212, 224, 198, 0.88);
+}
+
 .item-icon {
   width: 32px;
   height: 32px;

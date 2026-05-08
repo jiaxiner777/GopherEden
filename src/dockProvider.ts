@@ -11,6 +11,7 @@ import {
   getFurnitureKinds,
   getFurnitureLabel,
   getFurnitureAssetPath,
+  getFurniturePlacementType,
   getRoomLayoutConfig,
   getFloorTileAssetPath,
   getFloorTileMaskPath,
@@ -99,9 +100,11 @@ export class EdenDockProvider implements vscode.WebviewViewProvider {
 
     const furnitureImages: Record<string, string> = {};
     const furnitureLabels: Record<string, string> = {};
+    const furniturePlacementTypes: Record<string, string> = {};
     for (const kind of getFurnitureKinds()) {
       furnitureImages[kind] = this.getWebviewUri(webview, getFurnitureAssetPath(kind));
       furnitureLabels[kind] = getFurnitureLabel(kind);
+      furniturePlacementTypes[kind] = getFurniturePlacementType(kind);
     }
 
     const roomLayout = getRoomLayoutConfig();
@@ -119,6 +122,7 @@ export class EdenDockProvider implements vscode.WebviewViewProvider {
       effectMarkup,
       furnitureImages,
       furnitureLabels,
+      furniturePlacementTypes,
       roomLayout,
       roomVisuals: {
         floorTile,
