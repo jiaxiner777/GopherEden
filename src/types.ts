@@ -77,7 +77,9 @@ export interface GrowthUiState {
   readonly stageId: GrowthStageId;
   readonly stageLabel: string;
   readonly stageDescription: string;
+  readonly stageMinPoints: number;
   readonly pointsToNextStage: number;
+  readonly nextStageMinPoints: number | null;
   readonly nextStageLabel: string | null;
   readonly currentStatusLabel: string;
   readonly currentStatusHint: string;

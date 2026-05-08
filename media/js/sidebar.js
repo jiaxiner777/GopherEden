@@ -27,6 +27,8 @@
   const growthStageName = document.getElementById('growth-stage-name');
   const growthStageDescription = document.getElementById('growth-stage-description');
   const growthPoints = document.getElementById('growth-points');
+  const growthProgressBar = document.getElementById('growth-progress-bar');
+  const growthProgressLabel = document.getElementById('growth-progress-label');
   const growthNext = document.getElementById('growth-next');
   const growthPreference = document.getElementById('growth-preference');
   const growthBehavior = document.getElementById('growth-behavior');
@@ -90,6 +92,8 @@
     inventory: false,
     placed: false,
     shop: false,
+    'growth-ability': false,
+    'growth-status': false,
   };
 
   if (editorPetScale instanceof HTMLInputElement) {
@@ -310,6 +314,25 @@
     if (growthPoints) {
       growthPoints.textContent = String(growth.growthPoints);
     }
+
+    const stageSpan = growth.nextStageMinPoints
+      ? Math.max(1, growth.nextStageMinPoints - growth.stageMinPoints)
+      : 1;
+    const stageProgress = growth.nextStageMinPoints
+      ? Math.max(0, growth.growthPoints - growth.stageMinPoints)
+      : stageSpan;
+    const progressRatio = growth.nextStageMinPoints
+      ? Math.min(Math.max(stageProgress / stageSpan, 0), 1)
+      : 1;
+
+    if (growthProgressBar instanceof HTMLElement) {
+      growthProgressBar.style.width = `${progressRatio * 100}%`;
+    }
+    if (growthProgressLabel) {
+      growthProgressLabel.textContent = growth.nextStageMinPoints
+        ? `本阶段 ${stageProgress} / ${stageSpan}`
+        : '当前阶段已满';
+    }
     if (growthPreference) {
       growthPreference.textContent = growth.preferredFurnitureLabel;
     }
@@ -333,8 +356,8 @@
     }
     if (growthNext) {
       growthNext.textContent = growth.nextStageLabel
-        ? `距离 ${growth.nextStageLabel} 还差 ${growth.pointsToNextStage} 点`
-        : '已经到达当前版本的最高成长阶段';
+        ? `距 ${growth.nextStageLabel} 还差 ${growth.pointsToNextStage} 点`
+        : '已到达当前最高阶段';
     }
   }
 
