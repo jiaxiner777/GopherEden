@@ -38,8 +38,7 @@
   const furnitureImages = edenAssets.furnitureImages || {};
   const labelCopy = edenAssets.furnitureLabels || {};
   const roomLayout = edenAssets.roomLayout || null;
-  const floorTile = edenAssets.floorTile || '';
-  const floorTileMask = edenAssets.floorTileMask || '';
+  const roomVisuals = edenAssets.roomVisuals || null;
 
   let latestViewState = null;
   let dragSession = null;
@@ -47,7 +46,7 @@
   let lastEffectNonce = 0;
 
   if (roomLayout) {
-    initRoomLayout(roomLayout, floorTile, floorTileMask);
+    initRoomLayout(roomLayout, roomVisuals);
   }
 
   document.addEventListener('click', (event) => {
@@ -233,7 +232,7 @@
     renderManageState();
   }
 
-  function initRoomLayout(config, floorTileDataUri, floorTileMaskUri) {
+  function initRoomLayout(config, visuals) {
     if (!stage) {
       return;
     }
@@ -243,45 +242,131 @@
     const wallRatio = grid.floorStartRow / grid.rows;
     const floorRatio = grid.floorRows / grid.rows;
 
-    stage.style.setProperty('--wall-color', theme.wallColor);
-    stage.style.setProperty('--wall-stripe-color', theme.wallStripeColor);
-    stage.style.setProperty('--backdrop-color', theme.backdropColor || theme.wallColor);
-    stage.style.setProperty('--trim-color', theme.trimColor || 'transparent');
+    stage.style.setProperty('--backdrop-color', theme.backdropColor || '#2c1e15');
     stage.style.setProperty('--wall-ratio', String(wallRatio));
     stage.style.setProperty('--floor-ratio', String(floorRatio));
     stage.style.setProperty('--grid-cols', String(grid.cols));
     stage.style.setProperty('--floor-rows', String(grid.floorRows));
+    stage.style.setProperty('--wall-upper-tile', visuals?.wallUpperTile ? `url("${visuals.wallUpperTile}")` : 'none');
+    stage.style.setProperty('--wall-lower-tile', visuals?.wallLowerTile ? `url("${visuals.wallLowerTile}")` : 'none');
+    stage.style.setProperty('--window-sprite', visuals?.windowSprite ? `url("${visuals.windowSprite}")` : 'none');
+    stage.style.setProperty('--window-glow-color', theme.window.glowColor || 'rgba(255, 218, 130, 0.32)');
+    stage.style.setProperty('--sun-patch-color', theme.window.sunPatchColor || 'rgba(255, 220, 132, 0.28)');
+    stage.style.setProperty('--ao-color', theme.wall.aoColor || 'rgba(44, 24, 10, 0.72)');
+    stage.style.setProperty('--vignette-color', theme.wall.vignetteColor || 'rgba(28, 16, 8, 0.34)');
+    stage.style.setProperty('--floor-tile-mask', visuals?.floorTileMask ? `url("${visuals.floorTileMask}")` : 'none');
 
-    if (floorTileDataUri) {
-      stage.style.setProperty('--floor-tile', `url("${floorTileDataUri}")`);
+    const wallpaperEl = stage.querySelector('.wallpaper');
+    const wallLowerEl = stage.querySelector('.wall-lower');
+    const windowFrameEl = stage.querySelector('.window-frame');
+    const wallGlowEl = stage.querySelector('.wall-glow');
+    const sunPatchEl = stage.querySelector('.sun-patch');
+    const aoLineEl = stage.querySelector('.ao-line');
+    const rugEl = stage.querySelector('.rug');
+
+    if (wallpaperEl instanceof HTMLElement) {
+      wallpaperEl.style.height = `${wallRatio * 100}%`;
     }
-    if (floorTileMaskUri) {
-      stage.style.setProperty('--floor-tile-mask', `url("${floorTileMaskUri}")`);
+
+    const lowerTopRatio = (grid.floorStartRow - theme.wall.lowerRows) / grid.rows;
+    const lowerHeightRatio = theme.wall.lowerRows / grid.rows;
+    if (wallLowerEl instanceof HTMLElement) {
+      wallLowerEl.style.top = `${lowerTopRatio * 100}%`;
+      wallLowerEl.style.height = `${lowerHeightRatio * 100}%`;
     }
 
     const win = theme.window;
-    const windowEl = stage.querySelector('.window-glow');
-    if (windowEl instanceof HTMLElement) {
-      windowEl.style.left = `${win.pos[0] / grid.cols * 100}%`;
-      windowEl.style.top = `${win.pos[1] / grid.rows * 100}%`;
-      windowEl.style.width = `${win.size[0] / grid.cols * 100}%`;
-      windowEl.style.height = `${win.size[1] / grid.rows * 100}%`;
-      windowEl.style.setProperty('--window-frame', win.frameColor);
-      windowEl.style.setProperty('--window-glass', win.glassColor);
+    const winLeft = win.pos[0] / grid.cols;
+    const winTop = win.pos[1] / grid.rows;
+    const winWidth = win.size[0] / grid.cols;
+    const winHeight = win.size[1] / grid.rows;
+
+    if (windowFrameEl instanceof HTMLElement) {
+      windowFrameEl.style.left = `${winLeft * 100}%`;
+      windowFrameEl.style.top = `${winTop * 100}%`;
+      windowFrameEl.style.width = `${winWidth * 100}%`;
+      windowFrameEl.style.height = `${winHeight * 100}%`;
     }
 
-    if (theme.rug) {
-      const rug = theme.rug;
-      const rugEl = stage.querySelector('.rug');
-      if (rugEl instanceof HTMLElement) {
+    if (wallGlowEl instanceof HTMLElement) {
+      const glowPadX = 1.25 / grid.cols;
+      const glowPadY = 0.85 / grid.rows;
+      wallGlowEl.style.left = `${Math.max(0, winLeft - glowPadX) * 100}%`;
+      wallGlowEl.style.top = `${Math.max(0, winTop - glowPadY) * 100}%`;
+      wallGlowEl.style.width = `${Math.min(1, winWidth + glowPadX * 2) * 100}%`;
+      wallGlowEl.style.height = `${Math.min(1, winHeight + glowPadY * 2) * 100}%`;
+    }
+
+    if (sunPatchEl instanceof HTMLElement) {
+      const patchWidthCols = Math.min(grid.cols * 0.44, win.size[0] * 2.4);
+      const patchHeightRows = Math.min(grid.floorRows * 1.2, 1.6);
+      const patchLeftCols = clamp((win.pos[0] + win.size[0] * 0.5) - patchWidthCols * 0.5, 0, grid.cols - patchWidthCols);
+      const patchTopRows = grid.floorStartRow + 0.18;
+      sunPatchEl.style.left = `${(patchLeftCols / grid.cols) * 100}%`;
+      sunPatchEl.style.top = `${(patchTopRows / grid.rows) * 100}%`;
+      sunPatchEl.style.width = `${(patchWidthCols / grid.cols) * 100}%`;
+      sunPatchEl.style.height = `${(patchHeightRows / grid.rows) * 100}%`;
+    }
+
+    if (aoLineEl instanceof HTMLElement) {
+      aoLineEl.style.top = `${wallRatio * 100}%`;
+    }
+
+    if (rugEl instanceof HTMLElement) {
+      if (theme.rug) {
+        const rug = theme.rug;
+        rugEl.classList.remove('is-hidden');
         rugEl.style.left = `${rug.pos[0] / grid.cols * 100}%`;
         rugEl.style.top = `${rug.pos[1] / grid.rows * 100}%`;
         rugEl.style.width = `${rug.size[0] / grid.cols * 100}%`;
         rugEl.style.height = `${rug.size[1] / grid.rows * 100}%`;
         rugEl.style.setProperty('--rug-color', rug.color);
         rugEl.style.setProperty('--rug-stripe', rug.stripeColor);
+      } else {
+        rugEl.classList.add('is-hidden');
       }
     }
+
+    buildFloorTiles(grid, visuals);
+  }
+
+  function buildFloorTiles(grid, visuals) {
+    const floorEl = stage?.querySelector('.floor');
+    if (!(floorEl instanceof HTMLElement)) {
+      return;
+    }
+
+    const variantUris = visuals?.floorTileVariants?.length ? visuals.floorTileVariants : visuals?.floorTile ? [visuals.floorTile] : [];
+    const signature = JSON.stringify({ cols: grid.cols, rows: grid.floorRows, variantUris });
+    if (floorEl.dataset.signature === signature) {
+      return;
+    }
+
+    floorEl.dataset.signature = signature;
+    floorEl.innerHTML = '';
+
+    for (let row = 0; row < grid.floorRows; row += 1) {
+      for (let col = 0; col < grid.cols; col += 1) {
+        const cell = document.createElement('div');
+        cell.className = 'floor-tile-cell';
+        const tileUri = selectFloorVariantUri(row, col, variantUris);
+        cell.style.setProperty('--floor-cell-image', tileUri ? `url("${tileUri}")` : 'none');
+        floorEl.appendChild(cell);
+      }
+    }
+  }
+
+  function selectFloorVariantUri(row, col, variantUris) {
+    if (!variantUris.length) {
+      return '';
+    }
+    if (variantUris.length === 1) {
+      return variantUris[0];
+    }
+
+    const biasPattern = [0, 0, 1, 0, 2, 0, 3, 0];
+    const seed = (row * 11 + col * 7 + row * col * 3) % biasPattern.length;
+    return variantUris[biasPattern[seed] % variantUris.length];
   }
 
   function decoratePetReaction(host, effect) {

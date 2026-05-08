@@ -14,6 +14,9 @@ import {
   getRoomLayoutConfig,
   getFloorTileAssetPath,
   getFloorTileMaskPath,
+  getFloorTileVariantPaths,
+  getStageSpriteAssetPath,
+  getWallTileAssetPath,
 } from './roomConfig';
 import { EdenViewState, PetLineage } from './types';
 
@@ -103,8 +106,12 @@ export class EdenDockProvider implements vscode.WebviewViewProvider {
 
     const roomLayout = getRoomLayoutConfig();
     const floorTile = this.getWebviewUri(webview, getFloorTileAssetPath(roomLayout.floor));
+    const floorTileVariants = getFloorTileVariantPaths(roomLayout.floor).map((pathSegments) => this.getWebviewUri(webview, pathSegments));
     const maskPath = getFloorTileMaskPath(roomLayout.floor);
     const floorTileMask = maskPath ? this.getWebviewUri(webview, maskPath) : '';
+    const wallUpperTile = this.getWebviewUri(webview, getWallTileAssetPath(roomLayout.theme.wall.upperTileId));
+    const wallLowerTile = this.getWebviewUri(webview, getWallTileAssetPath(roomLayout.theme.wall.lowerTileId));
+    const windowSprite = this.getWebviewUri(webview, getStageSpriteAssetPath(roomLayout.theme.window.assetId));
 
     const assetPayload = this.serializeForInlineScript({
       petMarkup,
@@ -112,9 +119,15 @@ export class EdenDockProvider implements vscode.WebviewViewProvider {
       effectMarkup,
       furnitureImages,
       furnitureLabels,
-      floorTile,
-      floorTileMask,
       roomLayout,
+      roomVisuals: {
+        floorTile,
+        floorTileVariants,
+        floorTileMask,
+        wallUpperTile,
+        wallLowerTile,
+        windowSprite,
+      },
     });
 
     return `<!DOCTYPE html>
@@ -148,9 +161,14 @@ export class EdenDockProvider implements vscode.WebviewViewProvider {
       </header>
       <section id="stage" class="stage" aria-label="底部乐园舞台">
         <div class="wallpaper"></div>
-        <div class="window-glow"></div>
-        <div class="rug"></div>
+        <div class="wall-lower"></div>
+        <div class="wall-glow"></div>
+        <div class="window-frame"></div>
+        <div class="rug is-hidden"></div>
         <div class="floor"></div>
+        <div class="sun-patch"></div>
+        <div class="ao-line"></div>
+        <div class="vignette"></div>
         <div id="entities" class="entities"></div>
       </section>
       <section class="dock-panel">

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="32" viewBox="0 0 16 32" shape-rendering="crispEdges">
+  <!-- beadboard base wood (warm amber, slightly different shade than floor for layering) -->
+  <rect width="16" height="32" fill="#bd8a52"/>
+
+  <!-- vertical grooves at col 7 (mid-tile) and col 15 (= col -1 of next tile) -->
+  <rect x="7"  y="0" width="1" height="32" fill="#7a4d22"/>
+  <rect x="15" y="0" width="1" height="32" fill="#7a4d22"/>
+
+  <!-- shadow side of each groove (left of groove) -->
+  <rect x="6"  y="0" width="1" height="32" fill="#a87144"/>
+  <rect x="14" y="0" width="1" height="32" fill="#a87144"/>
+
+  <!-- highlight side of each groove (right of groove, = first column of next bead) -->
+  <rect x="0"  y="0" width="1" height="32" fill="#d59c69"/>
+  <rect x="8"  y="0" width="1" height="32" fill="#d59c69"/>
+
+  <!-- subtle vertical wood grain inside beads -->
+  <rect x="3"  y="5"  width="1" height="3" fill="#a87144"/>
+  <rect x="11" y="9"  width="1" height="4" fill="#a87144"/>
+  <rect x="4"  y="20" width="1" height="3" fill="#a87144"/>
+  <rect x="12" y="25" width="1" height="2" fill="#a87144"/>
+  <rect x="2"  y="14" width="1" height="2" fill="#9a6334"/>
+  <rect x="10" y="17" width="1" height="3" fill="#9a6334"/>
+</svg>

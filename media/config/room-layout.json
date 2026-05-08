@@ -7,25 +7,22 @@
     "floorRows": 3
   },
   "theme": {
-    "wallColor": "#587692",
-    "wallStripeColor": "#6f8ba5",
-    "wallStripeWidth": 1,
-    "backdropColor": "#203349",
-    "trimColor": "#1a2736",
-    "window": {
-      "pos": [11, 1],
-      "size": [3, 2],
-      "frameColor": "#503724",
-      "glassColor": "#93d2ff",
-      "glowColor": "#f7dfa0"
+    "backdropColor": "#2c1e15",
+    "wall": {
+      "upperTileId": "wall_sage",
+      "lowerTileId": "wall_wainscoting",
+      "lowerRows": 2,
+      "vignetteColor": "rgba(28, 16, 8, 0.34)",
+      "aoColor": "rgba(44, 24, 10, 0.72)"
     },
-    "rug": {
-      "pos": [4, 6],
-      "size": [6, 1],
-      "color": "#b56d49",
-      "stripeColor": "#d99063"
+    "window": {
+      "pos": [3, 1],
+      "size": [5, 4],
+      "assetId": "window_cottage",
+      "glowColor": "rgba(255, 218, 130, 0.34)",
+      "sunPatchColor": "rgba(255, 220, 132, 0.30)"
     }
   },
-  "floor": "tile_brown_square",
+  "floor": "wood_cottage_floor",
   "staticDecorations": []
 }
