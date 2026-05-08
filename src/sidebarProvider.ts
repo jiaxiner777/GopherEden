@@ -187,41 +187,75 @@ export class EdenSidebarProvider implements vscode.WebviewViewProvider {
         <div class="panel-header">
           <div>
             <h2>成长信息</h2>
-            <p class="helper-copy inline-copy">这里会明确告诉你：它属于什么种族、长到哪一阶段、下一步还会发生什么变化。</p>
+            <p class="helper-copy inline-copy">核心数值会实时更新，长说明默认收起。</p>
           </div>
           <span id="growth-stage-pill" class="panel-badge">初生期</span>
         </div>
         <div class="growth-grid">
-          <article class="growth-card growth-card-wide">
-            <span class="resource-label">当前种族</span>
-            <strong id="growth-lineage">Primitives / 原型派</strong>
-            <small id="growth-lineage-hint">最朴素、最亲和、最容易满足，动作圆润又放松。</small>
+          <article class="growth-stat-card">
+            <div class="growth-card-title">
+              <span class="growth-card-icon is-lineage" aria-hidden="true"></span>
+              <span class="resource-label">当前种族</span>
+            </div>
+            <strong id="growth-lineage" class="growth-main-value">Primitives / 原型派</strong>
+            <small id="growth-lineage-hint" class="growth-meta">最朴素、最亲和、最容易满足，动作圆润又放松。</small>
             <p id="growth-lineage-source" class="helper-copy compact growth-source">当前来源：自动判定</p>
           </article>
-          <article class="growth-card">
-            <span class="resource-label">当前阶段</span>
-            <strong id="growth-stage-name">初生期</strong>
-            <small id="growth-stage-description">它刚来到这个工程，动作还很稚嫩。</small>
+          <article class="growth-stat-card">
+            <div class="growth-card-title">
+              <span class="growth-card-icon is-stage" aria-hidden="true"></span>
+              <span class="resource-label">当前阶段</span>
+            </div>
+            <strong id="growth-stage-name" class="growth-main-value">初生期</strong>
+            <small id="growth-stage-description" class="growth-meta">它刚来到这个工程，动作还很稚嫩。</small>
           </article>
-          <article class="growth-card">
-            <span class="resource-label">成长值</span>
-            <strong id="growth-points">0</strong>
-            <small id="growth-next">距离下一阶段还差 100 点</small>
+          <article class="growth-stat-card">
+            <div class="growth-card-title">
+              <span class="growth-card-icon is-growth" aria-hidden="true"></span>
+              <span class="resource-label">成长值</span>
+            </div>
+            <strong id="growth-points" class="growth-main-value">0</strong>
+            <div class="growth-progress" aria-hidden="true">
+              <div class="growth-progress-track">
+                <span id="growth-progress-bar" class="growth-progress-fill"></span>
+              </div>
+              <small id="growth-progress-label" class="growth-progress-label">本阶段 0%</small>
+            </div>
+            <small id="growth-next" class="growth-meta growth-next-copy">距离下一阶段还差 100 点</small>
           </article>
-          <article class="growth-card">
-            <span class="resource-label">偏好家具</span>
-            <strong id="growth-preference">小木椅、像素盆栽</strong>
-            <small id="growth-behavior">它喜欢在长椅和树边慢悠悠地待着，是最可爱松弛的一支。</small>
+          <article class="growth-stat-card">
+            <div class="growth-card-title">
+              <span class="growth-card-icon is-preference" aria-hidden="true"></span>
+              <span class="resource-label">偏好家具</span>
+            </div>
+            <strong id="growth-preference" class="growth-main-value">小木椅、像素盆栽</strong>
+            <small id="growth-behavior" class="growth-meta">它喜欢在长椅和树边慢悠悠地待着，是最可爱松弛的一支。</small>
           </article>
-          <article class="growth-card growth-card-wide">
-            <span class="resource-label">阶段解锁能力</span>
-            <strong id="growth-stage-ability-title">基础陪伴动作</strong>
-            <small id="growth-stage-ability-hint">当前只解锁基础 idle / alert / working，和家具的联动还很弱。</small>
+          <article class="growth-fold-card" data-section-root="growth-ability">
+            <button class="growth-fold-toggle" type="button" data-toggle-section="growth-ability">
+              <span class="growth-card-title">
+                <span class="growth-card-icon is-ability" aria-hidden="true"></span>
+                <span class="resource-label">阶段解锁能力</span>
+              </span>
+              <span class="fold-indicator">展开</span>
+            </button>
+            <div class="growth-fold-body is-hidden" data-section-body="growth-ability">
+              <strong id="growth-stage-ability-title" class="growth-main-value">基础陪伴动作</strong>
+              <small id="growth-stage-ability-hint" class="growth-meta">当前只解锁基础 idle / alert / working，和家具的联动还很弱。</small>
+            </div>
           </article>
-          <article class="growth-card growth-card-wide">
-            <span class="resource-label">当前状态说明</span>
-            <strong id="growth-status">轻轻观察中</strong>
-            <small id="growth-status-hint">继续写代码、保存成功、逗它一下，都能帮助它从初生期长大。</small>
+          <article class="growth-fold-card" data-section-root="growth-status">
+            <button class="growth-fold-toggle" type="button" data-toggle-section="growth-status">
+              <span class="growth-card-title">
+                <span class="growth-card-icon is-status" aria-hidden="true"></span>
+                <span class="resource-label">当前状态说明</span>
+              </span>
+              <span class="fold-indicator">展开</span>
+            </button>
+            <div class="growth-fold-body is-hidden" data-section-body="growth-status">
+              <strong id="growth-status" class="growth-main-value">轻轻观察中</strong>
+              <small id="growth-status-hint" class="growth-meta">继续写代码、保存成功、逗它一下，都能帮助它从初生期长大。</small>
+            </div>
           </article>
         </div>
         <div class="lineage-picker" aria-label="手动切换种族">
