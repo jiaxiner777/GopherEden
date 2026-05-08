@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="76" height="76" viewBox="0 0 76 76" shape-rendering="crispEdges">
+  <!-- ============== FRAME ============== -->
+  <!-- frame body -->
+  <rect x="4" y="0" width="68" height="68" fill="#7a4d22"/>
+  <!-- top + left highlight (light catches top-left) -->
+  <rect x="4" y="0" width="68" height="1" fill="#b88554"/>
+  <rect x="4" y="0" width="1"  height="68" fill="#b88554"/>
+  <!-- bottom + right shadow -->
+  <rect x="71" y="0" width="1"  height="68" fill="#4a2c10"/>
+  <rect x="4"  y="67" width="68" height="1"  fill="#4a2c10"/>
+  <!-- darkest pixel at bottom-right corner -->
+  <rect x="71" y="67" width="1" height="1" fill="#2a1808"/>
+
+  <!-- ============== GLASS ============== -->
+  <rect x="7" y="3" width="62" height="62" fill="#f0e3b8"/>
+  <!-- inset shadow (top + left, recessed look) -->
+  <rect x="7" y="3" width="62" height="1" fill="#d4c896"/>
+  <rect x="7" y="3" width="1"  height="62" fill="#d4c896"/>
+  <!-- inset highlight (bottom + right, catches sun) -->
+  <rect x="7"  y="64" width="62" height="1" fill="#fcf2c4"/>
+  <rect x="68" y="3"  width="1"  height="62" fill="#fcf2c4"/>
+
+  <!-- diagonal sunshine stripes on glass -->
+  <rect x="11" y="7" width="6" height="1" fill="#fbf3da"/>
+  <rect x="12" y="8" width="6" height="1" fill="#fbf3da"/>
+  <rect x="13" y="9" width="5" height="1" fill="#fbf3da"/>
+  <rect x="42" y="40" width="6" height="1" fill="#fbf3da"/>
+  <rect x="43" y="41" width="5" height="1" fill="#fbf3da"/>
+
+  <!-- ============== MULLIONS (cross) ============== -->
+  <!-- vertical -->
+  <rect x="37" y="3" width="2" height="62" fill="#7a4d22"/>
+  <rect x="37" y="3" width="1" height="62" fill="#b88554"/>
+  <rect x="38" y="3" width="1" height="62" fill="#4a2c10"/>
+  <!-- horizontal -->
+  <rect x="7" y="33" width="62" height="2" fill="#7a4d22"/>
+  <rect x="7" y="33" width="62" height="1" fill="#b88554"/>
+  <rect x="7" y="34" width="62" height="1" fill="#4a2c10"/>
+
+  <!-- ============== SILL ============== -->
+  <!-- sill body (overhangs window left & right) -->
+  <rect x="0" y="68" width="76" height="8" fill="#7a4d22"/>
+  <!-- sill top highlight (where pot rests) -->
+  <rect x="0" y="68" width="76" height="1" fill="#d59c69"/>
+  <!-- sill body warm tone -->
+  <rect x="0" y="69" width="76" height="2" fill="#a87144"/>
+  <!-- sill front shadow strip + bottom darkest -->
+  <rect x="0" y="74" width="76" height="1" fill="#4a2c10"/>
+  <rect x="0" y="75" width="76" height="1" fill="#2a1808"/>
+  <!-- sill end caps (left + right edges of overhang) -->
+  <rect x="0"  y="68" width="1" height="8" fill="#5e3a18"/>
+  <rect x="75" y="68" width="1" height="8" fill="#5e3a18"/>
+
+  <!-- ============== POT ============== -->
+  <!-- terracotta rim -->
+  <rect x="9"  y="64" width="8" height="1" fill="#d97e5a"/>
+  <rect x="9"  y="64" width="1" height="1" fill="#e8916a"/>
+  <rect x="16" y="64" width="1" height="1" fill="#a45c3b"/>
+  <!-- pot body -->
+  <rect x="9"  y="65" width="8" height="2" fill="#b56b48"/>
+  <rect x="9"  y="65" width="1" height="2" fill="#cf8e63"/>
+  <rect x="16" y="65" width="1" height="2" fill="#7e3f24"/>
+  <!-- pot taper -->
+  <rect x="10" y="67" width="6" height="1" fill="#b56b48"/>
+  <rect x="10" y="67" width="1" height="1" fill="#cf8e63"/>
+  <rect x="15" y="67" width="1" height="1" fill="#7e3f24"/>
+
+  <!-- ============== LEAVES ============== -->
+  <!-- top sprouts -->
+  <rect x="11" y="58" width="1" height="1" fill="#94aa72"/>
+  <rect x="14" y="58" width="1" height="1" fill="#94aa72"/>
+  <!-- row 59 -->
+  <rect x="10" y="59" width="6" height="1" fill="#94aa72"/>
+  <rect x="11" y="59" width="1" height="1" fill="#5f7a4a"/>
+  <rect x="14" y="59" width="1" height="1" fill="#5f7a4a"/>
+  <!-- row 60 -->
+  <rect x="9"  y="60" width="8" height="1" fill="#94aa72"/>
+  <rect x="10" y="60" width="1" height="1" fill="#aebd8e"/>
+  <rect x="13" y="60" width="1" height="1" fill="#aebd8e"/>
+  <!-- row 61 -->
+  <rect x="9"  y="61" width="8" height="1" fill="#94aa72"/>
+  <rect x="11" y="61" width="2" height="1" fill="#5f7a4a"/>
+  <rect x="15" y="61" width="1" height="1" fill="#5f7a4a"/>
+  <!-- row 62 -->
+  <rect x="10" y="62" width="6" height="1" fill="#94aa72"/>
+  <!-- row 63 (settles into pot rim) -->
+  <rect x="11" y="63" width="4" height="1" fill="#94aa72"/>
+</svg>

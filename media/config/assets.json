@@ -92,6 +92,42 @@
       "maskPath": "furniture/summer_limited/floor-blend-mask.png",
       "width": 32,
       "height": 32
+    },
+    "wood_cottage_floor": {
+      "label": "温暖木地板",
+      "path": "ui/floor-tiles/wood-tile-clean.svg",
+      "variantPaths": [
+        "ui/floor-tiles/wood-tile-clean.svg",
+        "ui/floor-tiles/wood-tile-knot.svg",
+        "ui/floor-tiles/wood-tile-scratch.svg",
+        "ui/floor-tiles/wood-tile-grain.svg"
+      ],
+      "width": 32,
+      "height": 32
+    }
+  },
+  "wallTiles": {
+    "wall_cream_floral": {
+      "path": "ui/wall-tiles/wall-cream-floral.svg",
+      "width": 16,
+      "height": 16
+    },
+    "wall_sage": {
+      "path": "ui/wall-tiles/wall-sage.svg",
+      "width": 16,
+      "height": 16
+    },
+    "wall_wainscoting": {
+      "path": "ui/wall-tiles/wall-wainscoting.svg",
+      "width": 16,
+      "height": 32
+    }
+  },
+  "stageSprites": {
+    "window_cottage": {
+      "path": "ui/wall-tiles/window-cottage.svg",
+      "width": 76,
+      "height": 76
     }
   }
 }

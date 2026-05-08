@@ -20,6 +20,19 @@ export interface FloorTileAssetConfig {
   readonly label: string;
   readonly path: string;
   readonly maskPath?: string;
+  readonly variantPaths?: readonly string[];
+  readonly width: number;
+  readonly height: number;
+}
+
+export interface WallTileAssetConfig {
+  readonly path: string;
+  readonly width: number;
+  readonly height: number;
+}
+
+export interface StageSpriteAssetConfig {
+  readonly path: string;
   readonly width: number;
   readonly height: number;
 }
@@ -27,14 +40,16 @@ export interface FloorTileAssetConfig {
 export interface RoomAssetsConfig {
   readonly decorations: Readonly<Record<string, DecorationAssetConfig>>;
   readonly floorTiles: Readonly<Record<string, FloorTileAssetConfig>>;
+  readonly wallTiles: Readonly<Record<string, WallTileAssetConfig>>;
+  readonly stageSprites: Readonly<Record<string, StageSpriteAssetConfig>>;
 }
 
 export interface StageWindowConfig {
   readonly pos: readonly [number, number];
   readonly size: readonly [number, number];
-  readonly frameColor: string;
-  readonly glassColor: string;
+  readonly assetId: string;
   readonly glowColor: string;
+  readonly sunPatchColor: string;
 }
 
 export interface StageRugConfig {
@@ -53,11 +68,14 @@ export interface RoomLayoutConfig {
     readonly floorRows: number;
   };
   readonly theme: {
-    readonly wallColor: string;
-    readonly wallStripeColor: string;
-    readonly wallStripeWidth: number;
     readonly backdropColor: string;
-    readonly trimColor: string;
+    readonly wall: {
+      readonly upperTileId: string;
+      readonly lowerTileId: string;
+      readonly lowerRows: number;
+      readonly vignetteColor: string;
+      readonly aoColor: string;
+    };
     readonly window: StageWindowConfig;
     readonly rug?: StageRugConfig;
   };
@@ -151,9 +169,30 @@ export function getFloorTileAssetPath(floorId: string): readonly string[] {
   return splitRelativePath(getFloorTileDefinition(floorId).path);
 }
 
+export function getFloorTileVariantPaths(floorId: string): readonly (readonly string[])[] {
+  const def = getFloorTileDefinition(floorId);
+  return def.variantPaths?.map((relativePath) => splitRelativePath(relativePath)) ?? [splitRelativePath(def.path)];
+}
+
 export function getFloorTileMaskPath(floorId: string): readonly string[] | undefined {
   const def = getFloorTileDefinition(floorId);
   return def.maskPath ? splitRelativePath(def.maskPath) : undefined;
+}
+
+export function getWallTileAssetPath(tileId: string): readonly string[] {
+  const definition = getRoomAssetsConfig().wallTiles[tileId];
+  if (!definition) {
+    throw new Error(`Unknown wall tile id: ${tileId}`);
+  }
+  return splitRelativePath(definition.path);
+}
+
+export function getStageSpriteAssetPath(spriteId: string): readonly string[] {
+  const definition = getRoomAssetsConfig().stageSprites[spriteId];
+  if (!definition) {
+    throw new Error(`Unknown stage sprite id: ${spriteId}`);
+  }
+  return splitRelativePath(definition.path);
 }
 
 export function resolveMediaFsPath(relativePath: string): string {

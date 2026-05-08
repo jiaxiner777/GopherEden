@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" shape-rendering="crispEdges">
+  <!-- base wood -->
+  <rect width="32" height="32" fill="#a87144"/>
+
+  <!-- BLOCK 1 (rows 0-15): planks at cols 0-15 and 16-31 -->
+  <!-- top highlight -->
+  <rect x="0" y="0" width="32" height="1" fill="#d59c69"/>
+  <!-- bottom shadow (deep mahogany seam between plank rows) -->
+  <rect x="0" y="15" width="32" height="1" fill="#5e3a18"/>
+  <!-- plank-end edges -->
+  <rect x="0" y="1" width="1" height="14" fill="#c98a55"/>
+  <rect x="15" y="1" width="1" height="14" fill="#8a5a2c"/>
+  <rect x="16" y="1" width="1" height="14" fill="#c98a55"/>
+  <rect x="31" y="1" width="1" height="14" fill="#8a5a2c"/>
+  <!-- plank A grain (cols 1-14) -->
+  <rect x="2" y="3" width="6" height="1" fill="#8d5a2c"/>
+  <rect x="1" y="7" width="11" height="1" fill="#8d5a2c"/>
+  <rect x="5" y="11" width="6" height="1" fill="#8d5a2c"/>
+  <rect x="3" y="5" width="2" height="1" fill="#9a6334"/>
+  <rect x="9" y="9" width="3" height="1" fill="#9a6334"/>
+  <!-- plank B grain (cols 17-30) -->
+  <rect x="18" y="4" width="9" height="1" fill="#8d5a2c"/>
+  <rect x="20" y="8" width="6" height="1" fill="#8d5a2c"/>
+  <rect x="17" y="12" width="10" height="1" fill="#8d5a2c"/>
+  <rect x="22" y="6" width="3" height="1" fill="#9a6334"/>
+  <rect x="25" y="10" width="2" height="1" fill="#9a6334"/>
+
+  <!-- BLOCK 2 (rows 16-31): brick-offset planks; ends at cols 8 and 24 -->
+  <rect x="0" y="16" width="32" height="1" fill="#d59c69"/>
+  <rect x="0" y="31" width="32" height="1" fill="#5e3a18"/>
+  <!-- plank-end edges (brick offset) -->
+  <rect x="7" y="17" width="1" height="14" fill="#8a5a2c"/>
+  <rect x="8" y="17" width="1" height="14" fill="#c98a55"/>
+  <rect x="23" y="17" width="1" height="14" fill="#8a5a2c"/>
+  <rect x="24" y="17" width="1" height="14" fill="#c98a55"/>
+  <!-- left-continuation plank grain (cols 0-6) -->
+  <rect x="0" y="20" width="5" height="1" fill="#8d5a2c"/>
+  <rect x="1" y="24" width="6" height="1" fill="#8d5a2c"/>
+  <rect x="2" y="27" width="4" height="1" fill="#8d5a2c"/>
+  <!-- plank C grain (cols 9-22) -->
+  <rect x="10" y="19" width="9" height="1" fill="#8d5a2c"/>
+  <rect x="9" y="23" width="11" height="1" fill="#8d5a2c"/>
+  <rect x="13" y="27" width="8" height="1" fill="#8d5a2c"/>
+  <rect x="11" y="21" width="3" height="1" fill="#9a6334"/>
+  <rect x="17" y="25" width="3" height="1" fill="#9a6334"/>
+  <!-- right-continuation plank grain (cols 25-31) -->
+  <rect x="25" y="20" width="6" height="1" fill="#8d5a2c"/>
+  <rect x="26" y="25" width="5" height="1" fill="#8d5a2c"/>
+  <rect x="25" y="28" width="3" height="1" fill="#9a6334"/>
+</svg>
