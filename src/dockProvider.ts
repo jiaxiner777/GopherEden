@@ -141,25 +141,7 @@ export class EdenDockProvider implements vscode.WebviewViewProvider {
   <body>
     <script id="eden-assets" type="application/json">${assetPayload}</script>
     <main class="dock-app">
-      <header class="dock-header dock-toolbar">
-        <div class="dock-status">
-          <p class="eyebrow">GOPHER 乐园</p>
-          <p class="stage-title">像素伊甸小屋</p>
-          <div class="dock-chip-row">
-            <span id="dock-lineage-chip" class="chip">原型派</span>
-            <span id="dock-stage-chip" class="chip muted">初生期</span>
-          </div>
-          <p id="editor-pet-summary" class="description subtle">代码区宠物已关闭。你可以随时重新打开。</p>
-        </div>
-        <div class="header-actions">
-          <button class="toolbar-button" type="button" data-action="playWithPet">逗它一下</button>
-          <button id="dock-editor-pet-toggle" class="toolbar-button secondary" type="button" data-action="toggleEditorPet">在代码区显示宠物</button>
-          <button class="toolbar-button secondary" type="button" data-action="openHabitat">打开侧边栏</button>
-          <button class="toolbar-button secondary" type="button" data-action="renamePet">给宠物起名</button>
-          <button class="toolbar-button danger" type="button" data-action="returnAllPlacements">一键全部收回背包</button>
-        </div>
-      </header>
-      <section id="stage" class="stage" aria-label="底部乐园舞台">
+      <section id="stage" class="stage immersive-stage" aria-label="底部乐园舞台">
         <div class="wallpaper"></div>
         <div class="wall-lower"></div>
         <div class="wall-glow"></div>
@@ -171,7 +153,7 @@ export class EdenDockProvider implements vscode.WebviewViewProvider {
         <div class="vignette"></div>
         <div id="entities" class="entities"></div>
       </section>
-      <section class="dock-panel">
+      <section class="dock-panel is-hidden" aria-hidden="true">
         <button class="panel-title-row" type="button" id="dock-manage-toggle">
           <span>
             <strong>舞台摆件管理</strong>
