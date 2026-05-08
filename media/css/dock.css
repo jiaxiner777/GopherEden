@@ -34,10 +34,10 @@ button {
 
 .dock-app {
   display: grid;
-  grid-template-rows: auto 1fr auto;
+  grid-template-rows: 1fr;
   min-height: 100vh;
-  padding: 14px;
-  gap: 12px;
+  padding: 0;
+  gap: 0;
 }
 
 .dock-header,
@@ -130,6 +130,12 @@ small {
   background: var(--backdrop-color, #203349);
   min-height: 268px;
   image-rendering: pixelated;
+}
+
+.immersive-stage {
+  min-height: 100vh;
+  border: 0;
+  border-radius: 0;
 }
 
 .wallpaper,
@@ -315,18 +321,7 @@ small {
 }
 
 .entity-label {
-  position: absolute;
-  top: -18px;
-  left: 50%;
-  transform: translateX(-50%);
-  padding: 3px 10px;
-  border-radius: 999px;
-  background: rgba(240, 245, 255, 0.94);
-  color: #294261;
-  font-size: 12px;
-  font-weight: 700;
-  white-space: nowrap;
-  pointer-events: none;
+  display: none;
 }
 
 .pet-effect {
