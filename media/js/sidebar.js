@@ -9,7 +9,9 @@
   const petLineageChip = document.getElementById('pet-lineage-chip');
   const petStageChip = document.getElementById('pet-stage-chip');
   const petStage = document.getElementById('sidebar-pet-stage');
+  const petShell = document.querySelector('.pet-shell');
   const petImage = document.querySelector('.pet-image');
+  const petFocus = document.querySelector('.pet-focus');
 
   const bricks = document.getElementById('resource-bricks');
   const dew = document.getElementById('resource-dew');
@@ -93,6 +95,7 @@
   const furnitureImages = edenAssets.furnitureImages || {};
 
   let latestViewState = null;
+  let latestMotionState = null;
   let selectedInventoryKind = null;
   let lastEffectNonce = 0;
   const sectionState = {
@@ -180,11 +183,22 @@
 
   window.addEventListener('message', (event) => {
     const message = event.data;
-    if (!message || message.type !== 'state') {
+    if (!message) {
+      return;
+    }
+
+    if (message.type === 'motion') {
+      latestMotionState = message.payload;
+      applyPetMotion(latestMotionState);
+      return;
+    }
+
+    if (message.type !== 'state') {
       return;
     }
 
     latestViewState = message.payload;
+    latestMotionState = latestViewState.petMotion || latestMotionState;
     const inventoryKinds = new Set(
       (latestViewState.state.inventory || []).filter((item) => item.count > 0).map((item) => item.kind),
     );
@@ -224,12 +238,10 @@
       petStageChip.textContent = petVisual.stageLabel;
     }
 
-    const frames = petFrames[state.petStatus] || petFrames.normal;
-    if (petImage instanceof HTMLElement) {
-      petImage.innerHTML = frames[viewState.petAnimationFrame % frames.length] || frames[0] || '';
-    }
+    renderPetFrame(latestMotionState || viewState.petMotion || { frameIndex: viewState.petAnimationFrame });
     petStage?.classList.toggle('is-working', state.petStatus === 'working');
     petStage?.classList.toggle('is-alert', state.petStatus === 'startled');
+    applyPetMotion(latestMotionState || viewState.petMotion);
 
     if (bricks) {
       bricks.textContent = String(state.totalBricks);
@@ -296,6 +308,57 @@
     petStage.style.setProperty('--working-duration', `${visual.workingMotionMs}ms`);
     petStage.style.setProperty('--alert-duration', `${visual.alertMotionMs}ms`);
     petStage.dataset.status = status;
+  }
+
+  function renderPetFrame(motion) {
+    if (!(petImage instanceof HTMLElement) || !latestViewState) {
+      return;
+    }
+
+    const state = latestViewState.state;
+    const frames = petFrames[state.petStatus] || petFrames.normal;
+    const frameIndex = Number(motion?.frameIndex || 0) % Math.max(1, frames.length);
+    petImage.innerHTML = frames[frameIndex] || frames[0] || '';
+  }
+
+  function applyPetMotion(motion) {
+    if (!(petStage instanceof HTMLElement) || !motion) {
+      return;
+    }
+
+    petStage.dataset.behavior = motion.activeBehavior || 'settled';
+    petStage.classList.toggle('is-anticipating', Number(motion.anticipation || 0) > 0.08);
+    petStage.style.setProperty('--motion-body-x', `${Number(motion.bodyOffsetX || 0).toFixed(2)}px`);
+    petStage.style.setProperty('--motion-body-y', `${Number(motion.bodyOffsetY || 0).toFixed(2)}px`);
+    petStage.style.setProperty('--motion-body-rotate', `${Number(motion.bodyRotateDeg || 0).toFixed(2)}deg`);
+    petStage.style.setProperty('--motion-body-scale-x', Number(motion.bodyScaleX || 1).toFixed(4));
+    petStage.style.setProperty('--motion-body-scale-y', Number(motion.bodyScaleY || 1).toFixed(4));
+    petStage.style.setProperty('--motion-head-x', `${Number(motion.headOffsetX || 0).toFixed(2)}px`);
+    petStage.style.setProperty('--motion-head-y', `${Number(motion.headOffsetY || 0).toFixed(2)}px`);
+    petStage.style.setProperty('--motion-head-rotate', `${Number(motion.headRotateDeg || 0).toFixed(2)}deg`);
+    petStage.style.setProperty('--motion-gaze-x', `${(Number(motion.gazeX || 0) * 2.2).toFixed(2)}px`);
+    petStage.style.setProperty('--motion-gaze-y', `${(Number(motion.gazeY || 0) * 2.2).toFixed(2)}px`);
+    petStage.style.setProperty('--motion-focus-opacity', Number(motion.focusOpacity || 0).toFixed(3));
+    petStage.style.setProperty('--motion-shadow-scale', Number(motion.shadowScale || 1).toFixed(4));
+    petStage.style.setProperty('--motion-shadow-opacity', Number(motion.shadowOpacity || 0.24).toFixed(3));
+    petStage.style.setProperty('--motion-energy', Number(motion.motionEnergy || 0).toFixed(3));
+    petStage.style.setProperty('--motion-posture', Number(motion.posture || 0).toFixed(3));
+    petStage.style.setProperty('--motion-arousal', Number(motion.emotionalArousal || 0).toFixed(3));
+    petStage.style.setProperty('--motion-valence', Number(motion.emotionalValence || 0).toFixed(3));
+
+    if (petShell instanceof HTMLElement) {
+      petShell.style.setProperty('--motion-body-x', `${Number(motion.bodyOffsetX || 0).toFixed(2)}px`);
+      petShell.style.setProperty('--motion-body-y', `${Number(motion.bodyOffsetY || 0).toFixed(2)}px`);
+      petShell.style.setProperty('--motion-body-rotate', `${Number(motion.bodyRotateDeg || 0).toFixed(2)}deg`);
+      petShell.style.setProperty('--motion-body-scale-x', Number(motion.bodyScaleX || 1).toFixed(4));
+      petShell.style.setProperty('--motion-body-scale-y', Number(motion.bodyScaleY || 1).toFixed(4));
+    }
+
+    if (petFocus instanceof HTMLElement) {
+      petFocus.style.opacity = Number(motion.focusOpacity || 0).toFixed(3);
+    }
+
+    renderPetFrame(motion);
   }
 
   function renderGrowth(growth) {

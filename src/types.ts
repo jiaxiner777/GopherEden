@@ -1,10 +1,20 @@
-﻿export type EdenTheme = 'cyber-oasis' | 'pixel-meadow';
+export type EdenTheme = 'cyber-oasis' | 'pixel-meadow';
 
 export type PetStatus = 'normal' | 'startled' | 'working';
 export type PetLineage = 'primitives' | 'concurrency' | 'protocols' | 'chaos';
 export type PetLineageSource = 'auto' | 'manual';
 export type GrowthStageId = 'stage-a' | 'stage-b' | 'stage-c';
 export type PetEffectKind = 'heart' | 'sparkle' | 'alert';
+export type PetIdleBehavior =
+  | 'settled'
+  | 'breath-hold'
+  | 'glance-left'
+  | 'glance-right'
+  | 'head-tilt-left'
+  | 'head-tilt-right'
+  | 'curious-lean'
+  | 'posture-reset'
+  | 'attentive-freeze';
 
 export type FurnitureKind = string;
 
@@ -103,6 +113,7 @@ export interface PetVisualUiState {
   readonly sidebarScale: number;
   readonly dockScale: number;
   readonly editorScaleMultiplier: number;
+  readonly motionMultiplier: number;
   readonly idleMotionMs: number;
   readonly workingMotionMs: number;
   readonly alertMotionMs: number;
@@ -112,11 +123,35 @@ export interface PetVisualUiState {
   readonly preferredFurnitureLabel: string;
 }
 
+export interface PetMotionUiState {
+  readonly frameIndex: 0 | 1;
+  readonly bodyOffsetX: number;
+  readonly bodyOffsetY: number;
+  readonly bodyRotateDeg: number;
+  readonly bodyScaleX: number;
+  readonly bodyScaleY: number;
+  readonly headOffsetX: number;
+  readonly headOffsetY: number;
+  readonly headRotateDeg: number;
+  readonly gazeX: number;
+  readonly gazeY: number;
+  readonly focusOpacity: number;
+  readonly posture: number;
+  readonly anticipation: number;
+  readonly emotionalArousal: number;
+  readonly emotionalValence: number;
+  readonly motionEnergy: number;
+  readonly shadowScale: number;
+  readonly shadowOpacity: number;
+  readonly activeBehavior: PetIdleBehavior;
+}
+
 export interface EdenViewState {
   readonly state: EdenState;
   readonly editorPet: EditorPetUiState;
   readonly growth: GrowthUiState;
   readonly petVisual: PetVisualUiState;
+  readonly petMotion: PetMotionUiState;
   readonly shopItems: readonly ShopItem[];
   readonly petAnimationFrame: number;
   readonly petEffect: PetEffectKind | null;

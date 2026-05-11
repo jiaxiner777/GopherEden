@@ -18,6 +18,7 @@ import {
   getLineageDefinition,
   getMotionProfile,
 } from './petConfig';
+import { PetMotionEngine } from './petMotion';
 import { EdenSidebarProvider, SidebarMessage } from './sidebarProvider';
 import { EdenStateStore } from './stateStore';
 import {
@@ -87,7 +88,7 @@ const FURNITURE_MAX_LINE_LENGTH = 142;
 const FURNITURE_BASE_OFFSET_X = 88;
 const FURNITURE_FLOAT_OFFSET_X = 98;
 const FURNITURE_OPACITY = '0.74';
-const PET_ANIMATION_INTERVAL_MS = 320;
+const PET_MOTION_INTERVAL_MS = 90;
 
 
 class EdenController implements vscode.Disposable {
@@ -96,16 +97,16 @@ class EdenController implements vscode.Disposable {
   private readonly stateStore: EdenStateStore;
   private readonly sidebarProvider: EdenSidebarProvider;
   private readonly dockProvider: EdenDockProvider;
+  private readonly petMotion: PetMotionEngine;
   private petDecorations: Record<PetMood, readonly vscode.TextEditorDecorationType[]>;
   private currentPetDecorationSignature = '';
   private readonly furnitureDecorations: Map<FurnitureKind, vscode.TextEditorDecorationType>;
   private readonly statusBarItem: vscode.StatusBarItem;
 
   private workingAnimationTimer: NodeJS.Timeout | undefined;
-  private petAnimationTimer: NodeJS.Timeout | undefined;
+  private petMotionTimer: NodeJS.Timeout | undefined;
   private petEffectTimer: NodeJS.Timeout | undefined;
   private petFollowupEffectTimer: NodeJS.Timeout | undefined;
-  private petAnimationTick = 0;
   private petEffect: PetEffectKind | null = null;
   private petEffectNonce = 0;
   private hasErrors = false;
@@ -114,6 +115,7 @@ class EdenController implements vscode.Disposable {
 
   public constructor(private readonly context: vscode.ExtensionContext) {
     this.stateStore = new EdenStateStore();
+    this.petMotion = new PetMotionEngine(buildMotionSeed(context.extensionUri.toString()));
     this.sidebarProvider = new EdenSidebarProvider(context.extensionUri);
     this.dockProvider = new EdenDockProvider(context.extensionUri, (visible) => {
       this.dockVisible = visible;
@@ -152,7 +154,7 @@ class EdenController implements vscode.Disposable {
     this.disposables.push(this.registerCommands());
     this.disposables.push(this.registerEventListeners());
     this.statusBarItem.show();
-    this.startAnimationLoop();
+    this.startMotionLoop();
 
     const activeEditor = vscode.window.activeTextEditor;
     if (activeEditor && this.isEligibleEditor(activeEditor)) {
@@ -167,6 +169,7 @@ class EdenController implements vscode.Disposable {
     }
 
     await this.refreshErrorState();
+    this.petMotion.sample(this.stateStore.getState());
     await this.renderAndSync();
   }
 
@@ -176,9 +179,9 @@ class EdenController implements vscode.Disposable {
       this.workingAnimationTimer = undefined;
     }
 
-    if (this.petAnimationTimer) {
-      clearInterval(this.petAnimationTimer);
-      this.petAnimationTimer = undefined;
+    if (this.petMotionTimer) {
+      clearInterval(this.petMotionTimer);
+      this.petMotionTimer = undefined;
     }
 
     if (this.petEffectTimer) {
@@ -412,6 +415,7 @@ class EdenController implements vscode.Disposable {
     const stage = getGrowthStage(state.growthPoints);
     const lineage = getLineageDefinition(state.petLineage);
     await this.stateStore.addGrowthPoints(stage.growthProfile.interactionGain);
+    this.petMotion.note('interaction', stage.id === 'stage-c' ? 1 : 0.82);
     this.showPetEffect('heart', stage.id === 'stage-c' ? 1700 : 1400);
     if (stage.id !== 'stage-a') {
       this.scheduleFollowupEffect('sparkle', stage.id === 'stage-c' ? 260 : 420);
@@ -469,6 +473,7 @@ class EdenController implements vscode.Disposable {
       if (anchorType === 'dock') {
         await this.stateStore.placeFurnitureInDock(kind);
         await this.stateStore.addGrowthPoints(stage.growthProfile.placementGain);
+        this.petMotion.note('placement', 0.58);
         await this.settlePetByFurnitureAffinity('placement', [kind]);
         await this.renderAndSync();
         await this.openDock();
@@ -489,6 +494,7 @@ class EdenController implements vscode.Disposable {
       );
       await this.stateStore.setPetAnchor(editor.document.uri.toString(), editor.selection.active.line);
       await this.stateStore.addGrowthPoints(stage.growthProfile.placementGain);
+      this.petMotion.note('placement', 0.58);
       await this.settlePetByFurnitureAffinity('placement', [kind]);
       await this.renderAndSync();
     } catch (error) {
@@ -724,6 +730,7 @@ class EdenController implements vscode.Disposable {
   }
 
   private trackWorkingBurst(addedMeaningfulLines: number): void {
+    this.petMotion.note('typing', Math.min(1, Math.max(0.24, addedMeaningfulLines / 8)));
     const now = Date.now();
     this.activityWindow = this.activityWindow
       .filter((entry) => now - entry.at <= 2200)
@@ -758,6 +765,7 @@ class EdenController implements vscode.Disposable {
     const hadErrors = this.hasErrors;
     this.hasErrors = errorCount > 0;
     if (!hadErrors && this.hasErrors) {
+      this.petMotion.note('error', 1);
       this.showPetEffect('alert', 1800);
       await this.escapePetFromErrors();
     }
@@ -917,6 +925,7 @@ class EdenController implements vscode.Disposable {
       stabilityText = `，稳定开发奖励成长值 +${stage.growthProfile.stableDevelopmentBonusGain}`;
     }
 
+    this.petMotion.note('save', stage.id === 'stage-c' ? 1 : 0.88);
     if (stage.id === 'stage-a') {
       this.showPetEffect('heart', 1200);
     } else {
@@ -1067,6 +1076,7 @@ class EdenController implements vscode.Disposable {
       sidebarScale: stage.sidebarScaleMultiplier,
       dockScale: stage.dockScaleMultiplier,
       editorScaleMultiplier: stage.editorScaleMultiplier,
+      motionMultiplier: stage.motionMultiplier,
       idleMotionMs: getMotionProfile(state.petLineage, 'normal').motionMs,
       workingMotionMs: getMotionProfile(state.petLineage, 'working').motionMs,
       alertMotionMs: getMotionProfile(state.petLineage, 'startled').motionMs,
@@ -1080,19 +1090,22 @@ class EdenController implements vscode.Disposable {
   private buildViewState(): EdenViewState {
     const state = this.stateStore.getState();
     const target = this.resolvePetRenderTarget(state);
+    const petMotion = this.petMotion.snapshot();
     return {
       state,
       editorPet: toEditorPetUiState(state, target, this.dockVisible),
       growth: this.buildGrowthUiState(state),
       petVisual: this.buildPetVisualUiState(state),
+      petMotion,
       shopItems: getShopItemsFromConfig(),
-      petAnimationFrame: this.getPetAnimationFrame(state.petStatus),
+      petAnimationFrame: petMotion.frameIndex,
       petEffect: this.petEffect,
       petEffectNonce: this.petEffectNonce,
     };
   }
 
   private async refreshStateDisplay(): Promise<void> {
+    this.petMotion.sample(this.stateStore.getState());
     const viewState = this.buildViewState();
     this.sidebarProvider.postState(viewState);
     this.dockProvider.postState(viewState);
@@ -1108,40 +1121,13 @@ class EdenController implements vscode.Disposable {
     const state = this.stateStore.getState();
     const petTarget = this.resolvePetRenderTarget(state);
     const furnitureTargets = this.resolveFurnitureTargets(state);
-    const petMood = toPetMood(state.petStatus);
 
     for (const editor of vscode.window.visibleTextEditors) {
       clearPetDecorations(editor, this.petDecorations);
       clearFurnitureDecorations(editor, this.furnitureDecorations);
     }
 
-    if (
-      petTarget.reason === 'visible' &&
-      petTarget.editor &&
-      petTarget.displayLine !== undefined &&
-      petTarget.anchorLine !== undefined
-    ) {
-      const anchorRange = endOfLineRange(petTarget.editor.document, petTarget.anchorLine);
-      const activeDecoration = this.petDecorations[petMood][this.getPetAnimationFrame(state.petStatus)]
-        ?? this.petDecorations[petMood][0];
-      const topOffset = computeTopOffset(
-        petTarget.editor,
-        petTarget.anchorLine,
-        petTarget.displayLine,
-      ) + (petTarget.topOffset ?? 0);
-
-      petTarget.editor.setDecorations(activeDecoration, [
-        {
-          range: anchorRange,
-          renderOptions: {
-            after: {
-              margin: `0 0 0 ${petTarget.mode === 'dock-edge' ? PET_EDGE_OFFSET_X : PET_FLOAT_OFFSET_X}px`,
-              textDecoration: buildOverlayCss(topOffset),
-            },
-          },
-        },
-      ]);
-    }
+    this.renderPetOverlay(state, petTarget);
 
     const grouped = new Map<vscode.TextEditor, Partial<Record<FurnitureKind, vscode.DecorationOptions[]>>>();
 
@@ -1167,6 +1153,55 @@ class EdenController implements vscode.Disposable {
         editor.setDecorations(decoration, perKind[kind] ?? []);
       }
     }
+  }
+
+  private renderPetOverlay(state: EdenState, petTarget: PetRenderTarget): void {
+    const petMood = toPetMood(state.petStatus);
+    const motion = this.petMotion.snapshot();
+
+    if (
+      petTarget.reason !== 'visible'
+      || !petTarget.editor
+      || petTarget.displayLine === undefined
+      || petTarget.anchorLine === undefined
+    ) {
+      return;
+    }
+
+    const anchorRange = endOfLineRange(petTarget.editor.document, petTarget.anchorLine);
+    const activeDecoration = this.petDecorations[petMood][motion.frameIndex] ?? this.petDecorations[petMood][0];
+    const topOffset = computeTopOffset(
+      petTarget.editor,
+      petTarget.anchorLine,
+      petTarget.displayLine,
+    ) + (petTarget.topOffset ?? 0);
+
+    petTarget.editor.setDecorations(activeDecoration, [
+      {
+        range: anchorRange,
+        renderOptions: {
+          after: {
+            margin: `0 0 0 ${petTarget.mode === 'dock-edge' ? PET_EDGE_OFFSET_X : PET_FLOAT_OFFSET_X}px`,
+            textDecoration: buildOverlayCss(topOffset, motion),
+          },
+        },
+      },
+    ]);
+  }
+
+  private async renderPetMotion(): Promise<void> {
+    this.ensurePetDecorationsCurrent();
+    const state = this.stateStore.getState();
+    const motion = this.petMotion.sample(state);
+    const petTarget = this.resolvePetRenderTarget(state);
+
+    for (const editor of vscode.window.visibleTextEditors) {
+      clearPetDecorations(editor, this.petDecorations);
+    }
+
+    this.renderPetOverlay(state, petTarget);
+    this.sidebarProvider.postMotion(motion);
+    this.dockProvider.postMotion(motion);
   }
 
   private resolvePetRenderTarget(state: EdenState): PetRenderTarget {
@@ -1312,21 +1347,14 @@ class EdenController implements vscode.Disposable {
     return targets;
   }
 
-  private startAnimationLoop(): void {
-    if (this.petAnimationTimer) {
+  private startMotionLoop(): void {
+    if (this.petMotionTimer) {
       return;
     }
 
-    this.petAnimationTimer = setInterval(() => {
-      this.petAnimationTick = (this.petAnimationTick + 1) % 1000;
-      this.renderDebounced();
-      void this.refreshStateDisplay();
-    }, PET_ANIMATION_INTERVAL_MS);
-  }
-
-  private getPetAnimationFrame(status: PetStatus): number {
-    const profile = getMotionProfile(this.stateStore.getState().petLineage, status);
-    return Math.floor(this.petAnimationTick / Math.max(1, profile.frameHold)) % 2;
+    this.petMotionTimer = setInterval(() => {
+      void this.renderPetMotion();
+    }, PET_MOTION_INTERVAL_MS);
   }
 
   private showPetEffect(kind: PetEffectKind, durationMs = 1400): void {
@@ -2170,7 +2198,13 @@ function hasInlineFurnitureRoom(
   return displayLength < FURNITURE_MAX_LINE_LENGTH && anchorLength < FURNITURE_MAX_LINE_LENGTH;
 }
 
-function buildOverlayCss(topOffset: number): string {
+function buildOverlayCss(topOffset: number, motion?: { readonly bodyOffsetX: number; readonly bodyOffsetY: number; readonly bodyRotateDeg: number; readonly bodyScaleX: number; readonly bodyScaleY: number; readonly headOffsetX: number; readonly headOffsetY: number; readonly headRotateDeg: number }): string {
+  const translateX = motion ? motion.bodyOffsetX + motion.headOffsetX * 0.45 : 0;
+  const translateY = motion ? motion.bodyOffsetY + motion.headOffsetY * 0.45 : 0;
+  const rotate = motion ? motion.bodyRotateDeg + motion.headRotateDeg * 0.32 : 0;
+  const scaleX = motion ? motion.bodyScaleX : 1;
+  const scaleY = motion ? motion.bodyScaleY : 1;
+
   return [
     'none',
     'position: relative',
@@ -2178,7 +2212,19 @@ function buildOverlayCss(topOffset: number): string {
     'pointer-events: none',
     'z-index: 10',
     'vertical-align: top',
+    'display: inline-block',
+    'transform-origin: 50% 34%',
+    `transform: translate(${translateX.toFixed(2)}px, ${translateY.toFixed(2)}px) rotate(${rotate.toFixed(2)}deg) scale(${scaleX.toFixed(4)}, ${scaleY.toFixed(4)})`,
   ].join('; ');
+}
+
+function buildMotionSeed(input: string): number {
+  let hash = 2166136261;
+  for (let index = 0; index < input.length; index += 1) {
+    hash ^= input.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
 }
 
 function computeFurnitureMarginLeft(

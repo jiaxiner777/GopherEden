@@ -42,6 +42,7 @@
   const roomVisuals = edenAssets.roomVisuals || null;
 
   let latestViewState = null;
+  let latestMotionState = null;
   let dragSession = null;
   let manageOpen = false;
   let lastEffectNonce = 0;
@@ -120,11 +121,22 @@
 
   window.addEventListener('message', (event) => {
     const message = event.data;
-    if (!message || message.type !== 'state') {
+    if (!message) {
+      return;
+    }
+
+    if (message.type === 'motion') {
+      latestMotionState = message.payload;
+      applyDockPetMotion(latestMotionState);
+      return;
+    }
+
+    if (message.type !== 'state') {
       return;
     }
 
     latestViewState = message.payload;
+    latestMotionState = latestViewState.petMotion || latestMotionState;
     render();
   });
 
@@ -194,13 +206,25 @@
     pet.style.setProperty('--alert-duration', `${visual.alertMotionMs}ms`);
     applyPosition(pet, state.petDockPosition);
 
+    const petShell = document.createElement('div');
+    petShell.className = 'pet-shell';
+
+    const petShadow = document.createElement('div');
+    petShadow.className = 'pet-shadow';
+    petShell.appendChild(petShadow);
+
     const petImage = document.createElement('div');
     petImage.className = 'pet-sprite';
     petImage.setAttribute('role', 'img');
     petImage.setAttribute('aria-label', state.petName);
-    const frames = petFrames[state.petStatus] || petFrames.normal;
-    petImage.innerHTML = frames[latestViewState.petAnimationFrame % frames.length] || frames[0] || '';
-    pet.appendChild(petImage);
+    petShell.appendChild(petImage);
+
+    const petFocus = document.createElement('div');
+    petFocus.className = 'pet-focus';
+    petFocus.setAttribute('aria-hidden', 'true');
+    petShell.appendChild(petFocus);
+
+    pet.appendChild(petShell);
 
     const petLabel = document.createElement('div');
     petLabel.className = 'entity-label';
@@ -213,6 +237,7 @@
     }
 
     entities.appendChild(pet);
+    applyDockPetMotion(latestMotionState || latestViewState.petMotion);
 
     dockPlacements.forEach((placement) => {
       const furniture = document.createElement('div');
@@ -259,6 +284,58 @@
     }
 
     renderManageState();
+  }
+
+  function applyDockPetMotion(motion) {
+    if (!latestViewState || !motion) {
+      return;
+    }
+
+    const pet = entities.querySelector('[data-entity="pet"]');
+    if (!(pet instanceof HTMLElement)) {
+      return;
+    }
+
+    const petShell = pet.querySelector('.pet-shell');
+    const petImage = pet.querySelector('.pet-sprite');
+    const petFocus = pet.querySelector('.pet-focus');
+    const petShadow = pet.querySelector('.pet-shadow');
+    const frames = petFrames[latestViewState.state.petStatus] || petFrames.normal;
+    const frameIndex = Number(motion.frameIndex || 0) % Math.max(1, frames.length);
+
+    if (petImage instanceof HTMLElement) {
+      petImage.innerHTML = frames[frameIndex] || frames[0] || '';
+      petImage.style.setProperty('--motion-head-x', `${Number(motion.headOffsetX || 0).toFixed(2)}px`);
+      petImage.style.setProperty('--motion-head-y', `${Number(motion.headOffsetY || 0).toFixed(2)}px`);
+      petImage.style.setProperty('--motion-head-rotate', `${Number(motion.headRotateDeg || 0).toFixed(2)}deg`);
+    }
+
+    pet.dataset.behavior = motion.activeBehavior || 'settled';
+    pet.classList.toggle('is-anticipating', Number(motion.anticipation || 0) > 0.08);
+    pet.style.setProperty('--motion-posture', Number(motion.posture || 0).toFixed(3));
+    pet.style.setProperty('--motion-arousal', Number(motion.emotionalArousal || 0).toFixed(3));
+    pet.style.setProperty('--motion-valence', Number(motion.emotionalValence || 0).toFixed(3));
+    pet.style.setProperty('--motion-energy', Number(motion.motionEnergy || 0).toFixed(3));
+    pet.style.setProperty('--motion-gaze-x', `${(Number(motion.gazeX || 0) * 2.8).toFixed(2)}px`);
+    pet.style.setProperty('--motion-gaze-y', `${(Number(motion.gazeY || 0) * 2.8).toFixed(2)}px`);
+    pet.style.setProperty('--motion-focus-opacity', Number(motion.focusOpacity || 0).toFixed(3));
+
+    if (petShell instanceof HTMLElement) {
+      petShell.style.setProperty('--motion-body-x', `${Number(motion.bodyOffsetX || 0).toFixed(2)}px`);
+      petShell.style.setProperty('--motion-body-y', `${Number(motion.bodyOffsetY || 0).toFixed(2)}px`);
+      petShell.style.setProperty('--motion-body-rotate', `${Number(motion.bodyRotateDeg || 0).toFixed(2)}deg`);
+      petShell.style.setProperty('--motion-body-scale-x', Number(motion.bodyScaleX || 1).toFixed(4));
+      petShell.style.setProperty('--motion-body-scale-y', Number(motion.bodyScaleY || 1).toFixed(4));
+    }
+
+    if (petShadow instanceof HTMLElement) {
+      petShadow.style.setProperty('--motion-shadow-scale', Number(motion.shadowScale || 1).toFixed(4));
+      petShadow.style.setProperty('--motion-shadow-opacity', Number(motion.shadowOpacity || 0.24).toFixed(3));
+    }
+
+    if (petFocus instanceof HTMLElement) {
+      petFocus.style.opacity = Number(motion.focusOpacity || 0).toFixed(3);
+    }
   }
 
   function initRoomLayout(config, visuals) {
