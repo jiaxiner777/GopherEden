@@ -535,24 +535,86 @@ small {
   --idle-duration: 2400ms;
   --working-duration: 1200ms;
   --alert-duration: 800ms;
+  --motion-body-x: 0px;
+  --motion-body-y: 0px;
+  --motion-body-rotate: 0deg;
+  --motion-body-scale-x: 1;
+  --motion-body-scale-y: 1;
+  --motion-head-x: 0px;
+  --motion-head-y: 0px;
+  --motion-head-rotate: 0deg;
+  --motion-gaze-x: 0px;
+  --motion-gaze-y: 0px;
+  --motion-shadow-scale: 1;
+  --motion-shadow-opacity: 0.24;
+  --motion-focus-opacity: 0.14;
+  --motion-energy: 0;
+  --motion-posture: 0.28;
+  --motion-arousal: 0.18;
+  --motion-valence: 0.08;
+}
+
+.entity.pet .pet-shell {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 120px;
+  height: 112px;
+  transform: translateX(-50%) translate3d(var(--motion-body-x), var(--motion-body-y), 0) rotate(var(--motion-body-rotate)) scaleX(var(--motion-body-scale-x)) scaleY(var(--motion-body-scale-y));
+  transform-origin: 50% 74%;
+  transition: transform 120ms cubic-bezier(0.2, 0.82, 0.25, 1);
+  will-change: transform;
+}
+
+.entity.pet .pet-shadow {
+  position: absolute;
+  left: 50%;
+  bottom: 18px;
+  width: 44px;
+  height: 8px;
+  border-radius: 999px;
+  transform: translateX(-50%) scaleX(var(--motion-shadow-scale));
+  opacity: var(--motion-shadow-opacity);
+  background: rgba(16, 22, 32, 0.28);
+  transition: transform 120ms ease-out, opacity 160ms ease-out;
+  will-change: transform, opacity;
 }
 
 .entity.pet .pet-sprite {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
   width: calc(72px * var(--pet-scale));
   height: calc(72px * var(--pet-scale));
-  animation-duration: var(--idle-duration);
+  animation: none;
+  transform: translateX(-50%) translate3d(var(--motion-head-x), var(--motion-head-y), 0) rotate(var(--motion-head-rotate));
+  transform-origin: 50% 38%;
+  transition: transform 120ms cubic-bezier(0.2, 0.82, 0.25, 1), filter 160ms ease-out;
+  will-change: transform;
 }
 
 .entity.pet .pet-sprite svg {
   filter: var(--pet-filter) drop-shadow(0 10px 14px rgba(0, 0, 0, 0.3));
 }
 
-.entity.pet.pet-status-working .pet-sprite {
-  animation-duration: var(--working-duration);
+.entity.pet .pet-focus {
+  position: absolute;
+  left: 50%;
+  top: 30px;
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  transform: translate(calc(-50% + var(--motion-gaze-x)), calc(-50% + var(--motion-gaze-y))) scale(calc(0.84 + var(--motion-energy) * 0.18));
+  opacity: var(--motion-focus-opacity);
+  background: radial-gradient(circle at center, rgba(255, 255, 255, 0.7) 0 24%, color-mix(in srgb, var(--pet-accent) 42%, rgba(255, 255, 255, 0.2)) 24% 54%, transparent 72%);
+  mix-blend-mode: screen;
+  pointer-events: none;
+  transition: transform 120ms cubic-bezier(0.2, 0.82, 0.25, 1), opacity 180ms ease-out;
 }
 
+.entity.pet.pet-status-working .pet-sprite,
 .entity.pet.pet-status-startled .pet-sprite {
-  animation-duration: var(--alert-duration);
+  filter: var(--pet-filter) drop-shadow(0 10px 14px rgba(0, 0, 0, 0.3));
 }
 
 .entity.pet.stage-stage-b::after,
@@ -582,18 +644,20 @@ small {
   opacity: 0.74;
 }
 
-.entity.pet.lineage-chaos .pet-sprite {
-  animation-name: petFloat, petChaosTwitch;
-  animation-duration: var(--idle-duration), 760ms;
-  animation-iteration-count: infinite, infinite;
+.entity.pet.is-anticipating .pet-shell {
+  filter: saturate(1.05) brightness(1.03);
 }
 
-.entity.pet.lineage-chaos.pet-status-working .pet-sprite {
-  animation-duration: var(--working-duration), 620ms;
+.entity.pet.is-heart .pet-sprite {
+  animation: petHappy 0.5s ease-in-out 2;
 }
 
-.entity.pet.lineage-chaos.pet-status-startled .pet-sprite {
-  animation-duration: var(--alert-duration), 420ms;
+.entity.pet.is-sparkle .pet-sprite {
+  animation: petShimmer 0.7s ease-in-out 2;
+}
+
+.entity.pet.is-alert-react .pet-sprite {
+  animation: petAlert 0.26s steps(2) 3;
 }
 
 .entity.pet.lineage-concurrency .entity-label {

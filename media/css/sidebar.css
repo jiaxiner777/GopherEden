@@ -1007,24 +1007,72 @@ body.theme-pixel-meadow .seasonal-showcase {
   --idle-duration: 2400ms;
   --working-duration: 1100ms;
   --alert-duration: 760ms;
+  --motion-body-x: 0px;
+  --motion-body-y: 0px;
+  --motion-body-rotate: 0deg;
+  --motion-body-scale-x: 1;
+  --motion-body-scale-y: 1;
+  --motion-head-x: 0px;
+  --motion-head-y: 0px;
+  --motion-head-rotate: 0deg;
+  --motion-gaze-x: 0px;
+  --motion-gaze-y: 0px;
+  --motion-shadow-scale: 1;
+  --motion-shadow-opacity: 0.24;
+  --motion-focus-opacity: 0.14;
+  --motion-energy: 0;
+  --motion-posture: 0.28;
+  --motion-arousal: 0.18;
+  --motion-valence: 0.08;
 }
 
-.pet-image {
+.pet-stage .pet-shell {
+  position: absolute;
+  inset: 0;
+  transform: translate3d(var(--motion-body-x), var(--motion-body-y), 0) rotate(var(--motion-body-rotate)) scaleX(var(--motion-body-scale-x)) scaleY(var(--motion-body-scale-y));
+  transform-origin: 50% 76%;
+  transition: transform 120ms cubic-bezier(0.2, 0.82, 0.25, 1);
+  will-change: transform;
+}
+
+.pet-stage .pet-shadow {
+  transform: translateX(-50%) scaleX(var(--motion-shadow-scale));
+  opacity: var(--motion-shadow-opacity);
+  transition: transform 120ms ease-out, opacity 160ms ease-out;
+  will-change: transform, opacity;
+}
+
+.pet-stage .pet-image {
   width: calc(78px * var(--pet-scale));
   height: calc(78px * var(--pet-scale));
-  animation-duration: var(--idle-duration);
+  animation: none;
+  transform: translateX(-50%) translate3d(var(--motion-head-x), var(--motion-head-y), 0) rotate(var(--motion-head-rotate));
+  transform-origin: 50% 36%;
+  transition: transform 120ms cubic-bezier(0.2, 0.82, 0.25, 1), filter 160ms ease-out;
+  will-change: transform;
 }
 
-.pet-image svg {
+.pet-stage .pet-image svg {
   filter: var(--pet-filter) drop-shadow(0 10px 14px rgba(0, 0, 0, 0.26));
 }
 
-.pet-stage.is-working .pet-image {
-  animation-duration: var(--working-duration);
+.pet-stage .pet-focus {
+  position: absolute;
+  left: 50%;
+  top: 24px;
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  transform: translate(calc(-50% + var(--motion-gaze-x)), calc(-50% + var(--motion-gaze-y))) scale(calc(0.84 + var(--motion-energy) * 0.18));
+  opacity: var(--motion-focus-opacity);
+  background: radial-gradient(circle at center, rgba(255, 255, 255, 0.68) 0 24%, color-mix(in srgb, var(--pet-accent) 42%, rgba(255, 255, 255, 0.2)) 24% 54%, transparent 72%);
+  mix-blend-mode: screen;
+  pointer-events: none;
+  transition: transform 120ms cubic-bezier(0.2, 0.82, 0.25, 1), opacity 180ms ease-out;
 }
 
-.pet-stage.is-alert .pet-image {
-  animation-duration: var(--alert-duration);
+.pet-stage.is-anticipating .pet-shell {
+  filter: saturate(1.04) brightness(1.02);
 }
 
 .pet-stage.stage-stage-b::after,
@@ -1070,26 +1118,16 @@ body.theme-pixel-meadow .seasonal-showcase {
   background: linear-gradient(180deg, #f1b0a0, #b96354);
 }
 
-.pet-stage.lineage-concurrency .pet-image {
-  animation-timing-function: cubic-bezier(0.3, 0, 0.3, 1.2);
+.pet-stage.is-heart .pet-image {
+  animation: petHappy 0.5s ease-in-out 2;
 }
 
-.pet-stage.lineage-protocols .pet-image {
-  animation-timing-function: ease-in-out;
+.pet-stage.is-sparkle .pet-image {
+  animation: petSparkle 0.6s ease-in-out 2;
 }
 
-.pet-stage.lineage-chaos .pet-image {
-  animation-name: petIdleFloat, petChaosTwitch;
-  animation-duration: var(--idle-duration), 760ms;
-  animation-iteration-count: infinite, infinite;
-}
-
-.pet-stage.lineage-chaos.is-working .pet-image {
-  animation-duration: var(--working-duration), 620ms;
-}
-
-.pet-stage.lineage-chaos.is-alert .pet-image {
-  animation-duration: var(--alert-duration), 420ms;
+.pet-stage.is-alert-react .pet-image {
+  animation: petAlert 0.28s steps(2) 3;
 }
 
 .growth-actions {

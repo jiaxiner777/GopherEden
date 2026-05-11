@@ -17,7 +17,7 @@ import {
   getFloorTileAssetPath,
   getFloorTileMaskPath,
 } from './roomConfig';
-import { EdenTheme, FurnitureAnchorType, FurnitureKind, EdenViewState, PetLineage } from './types';
+import { EdenTheme, FurnitureAnchorType, FurnitureKind, EdenViewState, PetLineage, PetMotionUiState } from './types';
 
 export type SidebarMessage =
   | { type: 'ready' }
@@ -59,6 +59,13 @@ export class EdenSidebarProvider implements vscode.WebviewViewProvider {
     this.view?.webview.postMessage({
       type: 'state',
       payload: viewState,
+    });
+  }
+
+  public postMotion(petMotion: PetMotionUiState): void {
+    this.view?.webview.postMessage({
+      type: 'motion',
+      payload: petMotion,
     });
   }
 
@@ -132,9 +139,12 @@ export class EdenSidebarProvider implements vscode.WebviewViewProvider {
       <section class="hero">
         <button class="pet-card" type="button" data-action="renamePet" title="给宠物起名">
           <div id="sidebar-pet-stage" class="pet-stage">
-            <div class="pet-shadow"></div>
-            <div class="pet-platform"></div>
-            <div class="pet-image" role="img" aria-label="Gopher 宠物">${petMarkup.normal1}</div>
+            <div class="pet-shell">
+              <div class="pet-shadow"></div>
+              <div class="pet-platform"></div>
+              <div class="pet-image" role="img" aria-label="Gopher 宠物">${petMarkup.normal1}</div>
+              <div class="pet-focus" aria-hidden="true"></div>
+            </div>
           </div>
           <div class="pet-copy">
             <p class="eyebrow">GOPHER'S EDEN</p>

@@ -19,7 +19,7 @@ import {
   getStageSpriteAssetPath,
   getWallTileAssetPath,
 } from './roomConfig';
-import { EdenViewState, PetLineage } from './types';
+import { EdenViewState, PetLineage, PetMotionUiState } from './types';
 
 export type DockMessage =
   | { type: 'ready' }
@@ -68,6 +68,13 @@ export class EdenDockProvider implements vscode.WebviewViewProvider {
     this.view?.webview.postMessage({
       type: 'state',
       payload: viewState,
+    });
+  }
+
+  public postMotion(petMotion: PetMotionUiState): void {
+    this.view?.webview.postMessage({
+      type: 'motion',
+      payload: petMotion,
     });
   }
 
