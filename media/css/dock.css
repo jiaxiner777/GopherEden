@@ -216,14 +216,26 @@ small {
   right: 0;
   bottom: 0;
   height: calc(var(--floor-ratio, 0.333) * 100%);
-  display: grid;
-  grid-template-columns: repeat(var(--grid-cols, 16), minmax(0, 1fr));
-  grid-template-rows: repeat(var(--floor-rows, 3), minmax(0, 1fr));
+  overflow: hidden;
   background: linear-gradient(180deg, rgba(78, 48, 20, 0.18), transparent 18%);
   border-top: 2px solid rgba(55, 31, 13, 0.34);
   z-index: 4;
   image-rendering: pixelated;
   pointer-events: none;
+}
+
+.floor-mosaic {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  image-rendering: pixelated;
+  shape-rendering: crispEdges;
+}
+
+.floor-mosaic image {
+  image-rendering: pixelated;
 }
 
 .floor::after {
@@ -237,11 +249,7 @@ small {
 }
 
 .floor-tile-cell {
-  background-image: var(--floor-cell-image, none);
-  background-repeat: no-repeat;
-  background-position: center;
-  background-size: 100% 100%;
-  image-rendering: pixelated;
+  display: none;
 }
 
 .sun-patch {

@@ -41,6 +41,9 @@
   const roomLayout = edenAssets.roomLayout || null;
   const roomVisuals = edenAssets.roomVisuals || null;
 
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+  const XLINK_NS = 'http://www.w3.org/1999/xlink';
+
   let latestViewState = null;
   let latestMotionState = null;
   let dragSession = null;
@@ -80,6 +83,10 @@
   });
 
   entities.addEventListener('pointerdown', (event) => {
+    if (dragSession) {
+      return;
+    }
+
     const target = event.target;
     if (!(target instanceof HTMLElement)) {
       return;
@@ -94,26 +101,35 @@
       return;
     }
 
+    entity.classList.add('dragging');
+    entity.setPointerCapture(event.pointerId);
+    const point = updateEntityPosition(entity, event);
     dragSession = {
       id: entity.dataset.id || '',
       type: entity.dataset.entity || '',
+      element: entity,
+      pointerId: event.pointerId,
+      x: point.x,
+      y: point.y,
     };
-    entity.classList.add('dragging');
-    entity.setPointerCapture(event.pointerId);
-    updateEntityPosition(entity, event);
   });
 
   entities.addEventListener('pointermove', (event) => {
-    if (!dragSession) {
+    if (!dragSession || event.pointerId !== dragSession.pointerId) {
       return;
     }
 
-    const entity = entities.querySelector(`[data-id="${dragSession.id}"]`);
+    const entity = dragSession.element instanceof HTMLElement && dragSession.element.isConnected
+      ? dragSession.element
+      : entities.querySelector(`[data-id="${dragSession.id}"]`);
     if (!(entity instanceof HTMLElement)) {
       return;
     }
 
-    updateEntityPosition(entity, event);
+    dragSession.element = entity;
+    const point = updateEntityPosition(entity, event);
+    dragSession.x = point.x;
+    dragSession.y = point.y;
   });
 
   entities.addEventListener('pointerup', (event) => finishDrag(event));
@@ -137,6 +153,11 @@
 
     latestViewState = message.payload;
     latestMotionState = latestViewState.petMotion || latestMotionState;
+    if (dragSession) {
+      applyDockPetMotion(latestMotionState);
+      return;
+    }
+
     render();
   });
 
@@ -204,7 +225,16 @@
     pet.style.setProperty('--idle-duration', `${visual.idleMotionMs}ms`);
     pet.style.setProperty('--working-duration', `${visual.workingMotionMs}ms`);
     pet.style.setProperty('--alert-duration', `${visual.alertMotionMs}ms`);
-    applyPosition(pet, state.petDockPosition);
+    applyPosition(
+      pet,
+      dragSession && dragSession.type === 'pet'
+        ? { x: dragSession.x, y: dragSession.y }
+        : state.petDockPosition,
+    );
+    if (dragSession && dragSession.type === 'pet') {
+      pet.classList.add('dragging');
+      dragSession.element = pet;
+    }
 
     const petShell = document.createElement('div');
     petShell.className = 'pet-shell';
@@ -247,7 +277,16 @@
       furniture.dataset.id = placement.id;
       furniture.dataset.placementType = placementType;
       furniture.style.zIndex = '1';
-      applyPosition(furniture, placement);
+      applyPosition(
+        furniture,
+        dragSession && dragSession.type === 'furniture' && dragSession.id === placement.id
+          ? { x: dragSession.x, y: dragSession.y }
+          : placement,
+      );
+      if (dragSession && dragSession.type === 'furniture' && dragSession.id === placement.id) {
+        furniture.classList.add('dragging');
+        dragSession.element = furniture;
+      }
 
       const image = document.createElement('img');
       image.alt = labelCopy[placement.kind] || placement.kind;
@@ -451,15 +490,36 @@
     floorEl.dataset.signature = signature;
     floorEl.innerHTML = '';
 
+    if (!variantUris.length) {
+      return;
+    }
+
+    const mosaic = document.createElementNS(SVG_NS, 'svg');
+    mosaic.classList.add('floor-mosaic');
+    mosaic.setAttribute('viewBox', `0 0 ${grid.cols} ${grid.floorRows}`);
+    mosaic.setAttribute('preserveAspectRatio', 'none');
+    mosaic.setAttribute('aria-hidden', 'true');
+
     for (let row = 0; row < grid.floorRows; row += 1) {
       for (let col = 0; col < grid.cols; col += 1) {
-        const cell = document.createElement('div');
-        cell.className = 'floor-tile-cell';
         const tileUri = selectFloorVariantUri(row, col, variantUris);
-        cell.style.setProperty('--floor-cell-image', tileUri ? `url("${tileUri}")` : 'none');
-        floorEl.appendChild(cell);
+        if (!tileUri) {
+          continue;
+        }
+
+        const image = document.createElementNS(SVG_NS, 'image');
+        image.setAttribute('x', String(col));
+        image.setAttribute('y', String(row));
+        image.setAttribute('width', '1');
+        image.setAttribute('height', '1');
+        image.setAttribute('preserveAspectRatio', 'none');
+        image.setAttribute('href', tileUri);
+        image.setAttributeNS(XLINK_NS, 'xlink:href', tileUri);
+        mosaic.appendChild(image);
       }
     }
+
+    floorEl.appendChild(mosaic);
   }
 
   function selectFloorVariantUri(row, col, variantUris) {
@@ -520,39 +580,43 @@
   }
 
   function updateEntityPosition(element, event) {
+    const point = getEventPosition(element, event);
+    applyPosition(element, point);
+    return point;
+  }
+
+  function getEventPosition(element, event) {
     const rect = stage.getBoundingClientRect();
     const bounds = getEntityBounds(element);
-    const x = clamp((event.clientX - rect.left) / rect.width, bounds.minX, bounds.maxX);
-    const y = clamp((event.clientY - rect.top) / rect.height, bounds.minY, bounds.maxY);
-    applyPosition(element, { x, y });
+    return {
+      x: clamp((event.clientX - rect.left) / rect.width, bounds.minX, bounds.maxX),
+      y: clamp((event.clientY - rect.top) / rect.height, bounds.minY, bounds.maxY),
+    };
   }
 
   function finishDrag(event) {
-    if (!dragSession) {
+    if (!dragSession || event.pointerId !== dragSession.pointerId) {
       return;
     }
 
-    const entity = entities.querySelector(`[data-id="${dragSession.id}"]`);
-    if (!(entity instanceof HTMLElement)) {
-      dragSession = null;
-      return;
+    const { type, id, x, y, pointerId } = dragSession;
+    const entity = dragSession.element instanceof HTMLElement && dragSession.element.isConnected
+      ? dragSession.element
+      : entities.querySelector(`[data-id="${id}"]`);
+
+    if (entity instanceof HTMLElement) {
+      entity.classList.remove('dragging');
+      if (entity.hasPointerCapture(pointerId)) {
+        entity.releasePointerCapture(pointerId);
+      }
     }
 
-    entity.classList.remove('dragging');
-    const bounds = getEntityBounds(entity);
-    const x = clamp(parseFloat(entity.style.left) / 100, bounds.minX, bounds.maxX);
-    const y = clamp(parseFloat(entity.style.top) / 100, bounds.minY, bounds.maxY);
-
-    if (dragSession.type === 'pet') {
+    if (type === 'pet') {
       vscode.postMessage({ type: 'movePet', x, y });
     }
 
-    if (dragSession.type === 'furniture') {
-      vscode.postMessage({ type: 'moveFurniture', id: dragSession.id, x, y });
-    }
-
-    if (entity.hasPointerCapture(event.pointerId)) {
-      entity.releasePointerCapture(event.pointerId);
+    if (type === 'furniture') {
+      vscode.postMessage({ type: 'moveFurniture', id, x, y });
     }
 
     dragSession = null;

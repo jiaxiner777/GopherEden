@@ -135,7 +135,7 @@ class EdenController implements vscode.Disposable {
       getFurnitureKinds().map((kind) => [kind, this.createFurnitureDecoration(kind)]),
     );
     this.statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
-    this.statusBarItem.text = '$(symbol-misc) Gopher 底部乐园';
+    this.statusBarItem.text = '$(symbol-misc) 底部乐园';
     this.statusBarItem.tooltip = '真正的拖拽和互动都放在底部乐园里完成';
     this.statusBarItem.command = 'gophersEden.openDock';
 
@@ -725,7 +725,7 @@ class EdenController implements vscode.Disposable {
     if (totalBricks > previousBricks) {
       const earned = totalBricks - previousBricks;
       this.showPetEffect('sparkle');
-      void vscode.window.showInformationMessage(`Gopher 收集到了 ${earned} 块碎砖。`);
+      void vscode.window.showInformationMessage(`工位搭子收集到了 ${earned} 块碎砖。`);
     }
   }
 
