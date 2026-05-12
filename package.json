@@ -1,13 +1,14 @@
 {
-  "name": "gophers-eden",
-  "displayName": "Gopher 乐园",
-  "description": "在 VS Code 里陪你写代码的像素宠物与开发者伊甸园。",
-  "version": "0.5.0",
+  "name": "code-mate",
+  "displayName": "vscode宠物：工位搭子",
+  "description": "在 VS Code 里陪你写代码的像素宠物搭子插件。",
+  "version": "1.0.0",
   "repository": {
     "type": "git",
     "url": "https://github.com/jiaxiner777/GopherEden.git"
   },
   "publisher": "local",
+  "license": "MIT",
   "engines": {
     "vscode": "^1.95.0"
   },
@@ -32,14 +33,14 @@
       "activitybar": [
         {
           "id": "gophersEden",
-          "title": "Gopher 乐园",
+          "title": "vscode宠物：工位搭子",
           "icon": "media/ui/activity-icon.svg"
         }
       ],
       "panel": [
         {
           "id": "gophersEdenPanel",
-          "title": "Gopher 底部乐园",
+          "title": "底部乐园",
           "icon": "media/ui/activity-icon.svg"
         }
       ]
@@ -48,7 +49,7 @@
       "gophersEden": [
         {
           "id": "gophersEden.sidebar",
-          "name": "伊甸面板",
+          "name": "vscode宠物：工位搭子",
           "type": "webview",
           "icon": "media/ui/activity-icon.svg"
         }
@@ -66,31 +67,31 @@
     "commands": [
       {
         "command": "gophersEden.openHabitat",
-        "title": "Gopher 乐园：打开伊甸面板"
+        "title": "vscode宠物：工位搭子：打开 vscode宠物：工位搭子"
       },
       {
         "command": "gophersEden.openDock",
-        "title": "Gopher 乐园：打开底部乐园"
+        "title": "vscode宠物：工位搭子：打开底部乐园"
       },
       {
         "command": "gophersEden.renamePet",
-        "title": "Gopher 乐园：给宠物起名"
+        "title": "vscode宠物：工位搭子：给宠物起名"
       },
       {
         "command": "gophersEden.playWithPet",
-        "title": "Gopher 乐园：逗一逗宠物"
+        "title": "vscode宠物：工位搭子：逗一逗宠物"
       },
       {
         "command": "gophersEden.redetectLineage",
-        "title": "Gopher 乐园：重新判断宠物种族"
+        "title": "vscode宠物：工位搭子：重新判断宠物种族"
       },
       {
         "command": "gophersEden.toggleEditorPet",
-        "title": "Gopher 乐园：切换代码区宠物显示"
+        "title": "vscode宠物：工位搭子：切换代码区宠物显示"
       },
       {
         "command": "gophersEden.switchTheme",
-        "title": "Gopher 乐园：切换主题"
+        "title": "vscode宠物：工位搭子：切换主题"
       }
     ],
     "keybindings": [
@@ -102,7 +103,7 @@
       }
     ],
     "configuration": {
-      "title": "Gopher 乐园",
+      "title": "vscode宠物：工位搭子",
       "properties": {
         "gophersEden.renderDebounceMs": {
           "type": "number",
@@ -130,6 +131,7 @@
     "dist/**",
     "media/**",
     "README.md",
+    "LICENSE",
     "package.json"
   ]
 }

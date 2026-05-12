@@ -117,8 +117,12 @@
   }
 
   document.addEventListener('click', (event) => {
-    const target = event.target;
-    if (!(target instanceof HTMLElement)) {
+    const target = event.target instanceof Element
+      ? event.target
+      : event.target instanceof Node
+        ? event.target.parentElement
+        : null;
+    if (!target) {
       return;
     }
 

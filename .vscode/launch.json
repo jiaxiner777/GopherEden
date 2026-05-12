@@ -2,7 +2,7 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Run Gopher's Eden",
+      "name": "Run code-mate",
       "type": "extensionHost",
       "request": "launch",
       "runtimeExecutable": "${execPath}",

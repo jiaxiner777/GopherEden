@@ -131,7 +131,7 @@ export class EdenSidebarProvider implements vscode.WebviewViewProvider {
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="stylesheet" href="${styleUri}" />
-    <title>Gopher 乐园</title>
+    <title>vscode宠物：工位搭子</title>
   </head>
   <body class="theme-cyber-oasis">
     <script id="eden-assets" type="application/json">${assetPayload}</script>
@@ -142,12 +142,12 @@ export class EdenSidebarProvider implements vscode.WebviewViewProvider {
             <div class="pet-shell">
               <div class="pet-shadow"></div>
               <div class="pet-platform"></div>
-              <div class="pet-image" role="img" aria-label="Gopher 宠物">${petMarkup.normal1}</div>
+              <div class="pet-image" role="img" aria-label="vscode宠物：工位搭子">${petMarkup.normal1}</div>
               <div class="pet-focus" aria-hidden="true"></div>
             </div>
           </div>
           <div class="pet-copy">
-            <p class="eyebrow">GOPHER'S EDEN</p>
+            <p class="eyebrow">CODE-MATE</p>
             <h1 id="pet-name">Moss</h1>
             <p id="pet-status" class="status-pill">悠闲中</p>
             <div class="pet-chip-row">
