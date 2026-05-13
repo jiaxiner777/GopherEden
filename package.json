@@ -2,12 +2,12 @@
   "name": "code-mate",
   "displayName": "vscode宠物：工位搭子",
   "description": "在 VS Code 里陪你写代码的像素宠物搭子插件。",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "repository": {
     "type": "git",
     "url": "https://github.com/jiaxiner777/GopherEden.git"
   },
-  "publisher": "local",
+  "publisher": "xingjiaxin",
   "license": "MIT",
   "engines": {
     "vscode": "^1.95.0"

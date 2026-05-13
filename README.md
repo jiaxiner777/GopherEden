@@ -82,6 +82,17 @@
 
 ## 使用方式
 
+### 安装
+
+#### 通过 VSIX 安装
+
+1. 从 GitHub Releases 下载 `code-mate-1.0.1.vsix`
+2. 打开 VS Code 扩展页
+3. 点击右上角 `...`
+4. 选择 `Install from VSIX...`
+5. 选中下载好的 `code-mate-1.0.1.vsix`
+6. 安装完成后重载 VS Code
+
 ### 打开面板
 
 安装后，你可以在 VS Code 中看到：
